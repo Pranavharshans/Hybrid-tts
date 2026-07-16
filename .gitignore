@@ -1,0 +1,42 @@
+# Secrets and local machine configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Model and dataset caches
+.cache/
+data/
+datasets/
+models/
+checkpoints/
+teacher_targets/
+
+# Generated experiment artifacts
+artifacts/
+samples/
+runs/
+wandb/
+logs/
+*.log
+*.wav
+*.flac
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/
