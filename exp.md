@@ -76,7 +76,7 @@ Follow-up:
 | EXP-031 | G3 | 100-sample deliberate overfit | PASS | Loss fell 90.4% in 40 steps; finite reloadable checkpoint produced |
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PASS | Restored step exactly matches uninterrupted loss, model, and optimizer hashes |
 | EXP-040 | G4 | Lean English AR adaptation | PASS | Stable 100-step adaptation improves disjoint-speaker held-out loss by 0.424% |
-| EXP-041 | G4 | Held-out intelligibility and failure analysis | RUNNING | Synthesizing paired challenge set and scoring with pinned Whisper ASR |
+| EXP-041 | G4 | Held-out intelligibility and failure analysis | FAIL | Adapted WER regresses 19% to 32% through clause/utterance truncation |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PLANNED | — |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PLANNED | — |
 | EXP-060 | G6 | Renderer target caching | PLANNED | — |
@@ -402,3 +402,24 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Real English adaptation is technically feasible and stable on the target GPU, but 100 steps/21 minutes yields only marginal held-out improvement and should not be presented as a meaningful quality gain. The result supports reuse and low-cost adaptation rather than training from scratch. Candidate selection must depend on generated-speech intelligibility and failure analysis, not teacher-forced loss alone.
 
 **Follow-up:** EXP-041 will synthesize a held-out English challenge set with baseline and adapted checkpoints, transcribe outputs using a frozen ASR evaluator, compare WER/CER and structural failures, and retain samples for manual listening.
+
+### EXP-041 — Held-out intelligibility and failure analysis
+
+- **Gate:** G4
+- **Status:** FAIL
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Determine whether the marginal teacher-forced gain from EXP-040 translates into non-degraded generated English speech on unseen challenge text.
+
+**Configuration:** Ten deterministic English prompts spanning plain prose, numbers, dates, names, initialisms, contrast, contractions, punctuation, rare words, and a long sentence. Both the untouched pretrained model and EXP-040 checkpoint used the same English voice reference, greedy decoding, seed, tokenizer, codec, and 192-frame ceiling. All twenty WAVs were transcribed by frozen `openai/whisper-tiny.en` revision `87c7102498dcde7456f24cfd30239ca606ed9063`. Scoring lowercased and removed punctuation but did not semantically normalize numeric renderings; paired comparison therefore remains valid even where absolute WER is conservative.
+
+**Acceptance criteria:** Ten finite, non-silent, structurally valid outputs per checkpoint; twenty ASR transcripts; WER and CER below 100%; adapted WER/CER no more than five absolute points worse than baseline.
+
+**Attempts 1–2:** Synthesis passed immediately. ASR scoring first found that Librosa was absent from the isolated MOSS environment, then found an API incompatibility in `Tensor.cuda(dtype=...)`. Commits `9ae2e60` and `f50702e` replaced Librosa with validated SoundFile/SciPy resampling and used `.to(device, dtype)`. Synthesis was cached and not regenerated; the complete frozen-ASR comparison was rerun.
+
+**Results:** FAIL. All twenty WAVs passed structural checks. Baseline WER was `0.19` and CER `0.18994`; adapted WER was `0.32` and CER `0.33333`, regressions of 13.0 and 14.34 absolute points. Both models were perfect on plain, initialism, contrast, and rare-word cases. Number/date errors were identical and partly reflect ASR numeric formatting. The adapted checkpoint additionally changed “Maya” to “Meyer” and, critically, truncated the punctuation prompt after “Wait” and the long prompt after its first clause. Baseline completed the long prompt with zero normalized ASR errors. Comparison JSON SHA-256 is `726825f459482d3250c5ddbe13ae56c65da8fe61c172d66c158c35e84b3f3cf2`; baseline/adapted synthesis manifests are `4d6cbf4258b7198b508d7c30f7edcb0d9c0374d2be28e5da1a036d8266c9e495` and `565ed5c993bf80f4d10b529c8c0fd12e811ffb08a7a9b72c40a6fb187504df1c`. All WAVs are retained for manual listening.
+
+**Decision:** Reject the EXP-040 adapted checkpoint. A 0.424% teacher-forced loss improvement did not predict generation quality and concealed severe early-EOS/truncation regression. Retain the untouched pretrained MOSS model as the AR startup baseline. Any later adaptation must include EOS-aware sampling, longer/more varied data, and generation-based checkpoint selection; training from scratch remains unjustified.
+
+**Follow-up:** G4 is complete with a negative candidate-selection result. Build G5 around the retained pretrained AR measurements, Nano renderer timings, stable/unstable text classes, packet buffering, cancellation, and explicit underrun accounting.
