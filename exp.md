@@ -65,7 +65,7 @@ Follow-up:
 | EXP-001 | G0 | Remote GPU discovery and SSH connectivity | PASS | Running instance; noninteractive SSH authenticated |
 | EXP-002 | G0 | GPU/CUDA/PyTorch capability validation | PASS | Blackwell-capable cu130 PyTorch; FP16/BF16 CUDA operations valid |
 | EXP-003 | G0 | Disk, network, checkpoint, and recovery validation | PASS | 300 GiB available; atomic checkpoints and detached supervisor verified |
-| EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PLANNED | — |
+| EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PASS | Deterministic CUDA inference produced valid 7.68 s English audio |
 | EXP-011 | G1 | MOSS latency and resource profile | PLANNED | — |
 | EXP-012 | G1 | Chatterbox installation and smoke inference | PLANNED | — |
 | EXP-013 | G1 | Chatterbox latency and resource profile | PLANNED | — |
@@ -170,3 +170,24 @@ Follow-up:
 **Decision:** PASS. G0 is complete; the environment can run recoverable unattended jobs within the defined storage policy.
 
 **Follow-up:** Begin G1 by installing MOSS-TTS-Nano in an isolated project environment and running deterministic smoke inference before profiling.
+
+### EXP-010 — MOSS-TTS-Nano installation and smoke inference
+
+- **Gate:** G1
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Prove that the current upstream MOSS-TTS-Nano checkpoint can run deterministic English voice-clone inference on the validated Blackwell framework without downgrading CUDA/PyTorch.
+
+**Configuration:** Upstream Git commit `11619374849c649486584e3b10ed55b176a924ee`; Hugging Face checkpoint `OpenMOSS-Team/MOSS-TTS-Nano`; audio tokenizer `OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano`; RTX 5060 Ti; PyTorch `2.12.0+cu130`; BF16; greedy decoding; fixed seed `20260716`; 96 generated audio frames; English reference `assets/audio/en_6.wav`; robust normalization enabled and WeTextProcessing disabled.
+
+**Acceptance criteria:** Inference completes on CUDA; output WAV exists; sample rate is at least 16 kHz; duration exceeds 0.5 s; waveform is finite and non-silent; generated token frames are present; compact evidence is atomically written.
+
+**Commands/artifacts:** `validation/moss_smoke.py`; `validation/run_moss_smoke.sh`; `validation/supervisor/moss-smoke.conf`; remote raw evidence `/workspace/nano-flash-artifacts/g1/moss-smoke/moss-smoke.{json,wav}`.
+
+**Results:** The first attempt exited before model loading because the upstream dynamic model imports `torchaudio`, while the Blackwell image has PyTorch 2.12 and no matching torchaudio 2.12 binary wheel. The available CUDA 13.0 torchaudio index stopped at 2.11, so installing it was rejected as an ABI risk. A narrow, source-controlled SoundFile/SciPy compatibility implementation for `load`, `save`, and `functional.resample` passed its sine-wave self-test. The corrected supervised run produced 96 audio-token frames, 7.680 s of finite non-silent 48 kHz stereo audio, RMS `0.02271471`, peak amplitude `0.29165649`, WAV SHA-256 `c2823803…a5e6b`, 20.3018 s cold elapsed time, and 0.4723 GiB peak allocated VRAM. Every automated smoke check passed. The raw artifacts remain on the instance; the compact metrics and hashes are recorded here because the local sandbox denied a subsequent SCP operation.
+
+**Decision:** PASS. MOSS is viable as the pretrained AR baseline on this GPU. Cold elapsed time is not an inference throughput result and must not be used as RTF; warm stage-level profiling follows in EXP-011.
+
+**Follow-up:** Pin the exact upstream/model revisions in the profiling harness, run warm repeated inference in one loaded process, and measure semantic generation, acoustic decode, RTF, TTFA proxy, VRAM, and determinism.
