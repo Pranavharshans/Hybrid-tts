@@ -68,7 +68,7 @@ Follow-up:
 | EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PASS | Deterministic CUDA inference produced valid 7.68 s English audio |
 | EXP-011 | G1 | MOSS latency and resource profile | PASS | Warm TTFA passes target; RTF 1.13 exposes semantic-generation bottleneck |
 | EXP-012 | G1 | Chatterbox access and isolated environment validation | PASS | Flash CUDA/ABI stack valid; gated Nano revision downloaded without persisting credentials |
-| EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | PLANNED | — |
+| EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | RUNNING | Attempt 1 generated valid audio; evidence save failed on undeclared TorchCodec dependency |
 | EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PLANNED | — |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PLANNED | — |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PLANNED | — |
@@ -237,3 +237,20 @@ Follow-up:
 **Decision:** PASS. Do not force Nano and Flash into one environment and do not modify the already validated MOSS environment. Use the official pinned Nano Space source in a dedicated PyTorch 2.11 CUDA 13.0 environment, and use the official Flash repository in its existing PyTorch 2.7 CUDA 12.8 environment. Begin Flash with Torch SDPA; treat FlashInfer as a separate later optimization because it adds compiled ABI and architecture risk.
 
 **Follow-up:** Build and validate the dedicated Nano environment, then run deterministic Nano and Flash smoke/profile experiments using local pinned snapshots and the same structural/latency evidence contract.
+
+### EXP-013 — Chatterbox-Nano smoke and warm profile
+
+- **Gate:** G1
+- **Status:** RUNNING
+- **Started:** 2026-07-16
+- **Harness commit:** `0b7d4ea`
+
+**Goal:** Validate the official gated Nano checkpoint end to end and measure fixed-seed warm completion/first-audio time, RTF, semantic versus one-step acoustic cost, conditioning cost, determinism, and VRAM on the target GPU.
+
+**Configuration:** Official Nano demo Space commit `647b4e895d3483995e5a6546999aa5e50490b92b`; local gated snapshot revision `493317046f21b7e557146a9285a111c050564bb4`; PyTorch/torchaudio `2.11.0+cu130`; Transformers `4.46.3`; official FP32 loader; cached zero-shot conditioning from the 7.8 s English `en_6.wav` reference; fixed seed `20260716`; canonical Nano sampling parameters; concurrency 1.
+
+**Acceptance criteria:** Model and conditionals load offline; warm-up, at least three uninstrumented requests, and one instrumented request produce finite non-silent audio; fixed-seed semantic tokens repeat; peak allocated VRAM stays below 14.5 GiB; semantic, acoustic, watermark, completion, and RTF measurements are present. The released full-utterance API must be reported honestly as non-streaming.
+
+**Attempt 1:** The model loaded, generated semantic tokens, completed two-step meanflow acoustic inference, and returned audio for the warm-up. The run then failed only when `torchaudio.save` raised `ImportError: TorchCodec is required for save_with_torchcodec`; TorchCodec is not declared by the official Nano requirements. No profile claim was made and no partial JSON was accepted.
+
+**Decision so far:** Correct the evidence writer to use the already installed SoundFile library instead of expanding the runtime with an unrelated codec dependency, rerun the complete experiment, and retain this attempt in the record.
