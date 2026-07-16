@@ -40,7 +40,7 @@ def tensor_tree_sha256(value: Any) -> str:
             digest.update(prefix.encode())
             digest.update(str(tensor.dtype).encode())
             digest.update(str(tuple(tensor.shape)).encode())
-            digest.update(tensor.view(torch.uint8).numpy().tobytes())
+            digest.update(tensor.reshape(-1).view(torch.uint8).numpy().tobytes())
         elif isinstance(item, dict):
             for key in sorted(item, key=str):
                 visit(item[key], f"{prefix}/{key}")
