@@ -81,7 +81,7 @@ def main() -> int:
         for item in synthesis["records"]:
             audio = load_16khz(item["audio"])
             inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
-            features = inputs.input_features.cuda(dtype=torch.float16)
+            features = inputs.input_features.to(device="cuda", dtype=torch.float16)
             with torch.inference_mode():
                 tokens = model.generate(features, max_new_tokens=128)
             transcript = processor.batch_decode(tokens, skip_special_tokens=True)[0]
