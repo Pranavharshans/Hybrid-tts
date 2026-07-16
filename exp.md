@@ -72,7 +72,7 @@ Follow-up:
 | EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PASS | Torch baseline is deterministic and memory-light; 0.592 RTF exposes unoptimized semantic bottleneck |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PASS | 250 randomized chunkings preserve monotonic, lossless committed prefixes |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PASS | Stable at all rates; two-word safety alone cannot meet the TTFA target |
-| EXP-030 | G3 | Token/data pipeline integrity | RUNNING | Encoding and packing a deliberate 100-record English overfit corpus |
+| EXP-030 | G3 | Token/data pipeline integrity | PASS | Official codec and SFT packer produce deterministic valid 100-record corpus |
 | EXP-031 | G3 | 100-sample deliberate overfit | PLANNED | — |
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PLANNED | — |
 | EXP-040 | G4 | Lean English AR adaptation | PLANNED | — |
@@ -322,3 +322,24 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Stable committed text alone cannot deliver the `<150 ms` TTFA target, even at a fast 40 chars/s input stream, because two-word lookahead delays the first safe prefix to 270 ms before inference begins. The architecture therefore needs two confidence classes: speculative/revocable text may feed the AR startup path before full commitment, while block generation must consume only stable committed spans. Playback release needs a short revision window or explicit LLM token-commit signal. At slow arrival rates the input source, not the GPU, is necessarily the limiting factor; underrun metrics must be conditioned on supplied-text rate.
 
 **Follow-up:** Preserve the stable committer as the block-path contract. In G3/G4, validate semantic token and training pipelines; in G5, simulate speculative AR startup, stable block continuation, buffer thresholds, cancellation, and rollback before releasing packets.
+
+### EXP-030 — Token/data pipeline integrity
+
+- **Gate:** G3
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Validate the official pretrained MOSS audio-tokenizer and teacher-forcing data path before spending GPU time on optimization, using a deliberately repeated English corpus that removes data diversity as a confounder.
+
+**Configuration:** One clean 7.8 s English utterance and transcript from the pinned MOSS repository was expanded into 100 uniquely identified records. The exact pinned MOSS audio tokenizer encoded targets with one CUDA process. The official SFT dataset packed records at maximum length 512 using the separately pinned custom MOSS text tokenizer and model configuration.
+
+**Acceptance criteria:** Exactly 100 unique English records; deterministic rank-two nonnegative audio codes with the model's 16-codebook width; loss-bearing teacher-forcing labels; prompt/padding masking; valid fixed-size collation; identical input records pack identically.
+
+**Attempt 1:** Audio encoding completed successfully, but the validator tried to load the custom tokenizer from the model snapshot. MOSS keeps its tokenizer implementation in a separate cached immutable snapshot, so packing stopped before making a claim. Commit `cf4d486` supplied the already validated G1 tokenizer snapshot; the complete pipeline was rerun.
+
+**Results:** PASS. Every record encoded to a deterministic `97 x 16` audio-token tensor with values from 0 to 1022 and SHA-256 `4e9d207b8fdf3666df80236d75cec58c0941c0e604acfabe00e12bb0f4644a39`. Each official packed sequence had length 243 with a 145-step prompt. Two-sample collation produced shape `2 x 511 x 17`, contained 3,300 active supervised values, correctly masked prompt/padding targets, and packed the first and last repeated records identically. All eleven integrity checks passed. Integrity JSON SHA-256 is `9894678a4d78014acb35a3cf4770f24ebf1239040c89e0de9f3894434d2556c5`; prepared JSONL SHA-256 is `3b25b84f937496d9a199757bcc8c227457b7ae3474b252dc8be87a964b6eb084`. Total evidence occupies approximately 840 KiB.
+
+**Decision:** The official pretrained tokenizer and SFT packing/masking pipeline are suitable for the lean training gates. Repeating one utterance is intentional only for plumbing and overfit validation; it provides no evidence of generalization or production voice quality.
+
+**Follow-up:** Run EXP-031 as a short full-model deliberate overfit with loss-decrease and finite-gradient criteria, retaining only compact checkpoints. Then prove restart equivalence in EXP-032.
