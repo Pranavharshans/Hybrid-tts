@@ -21,3 +21,5 @@ python validation/g0_environment.py \
 ```
 
 The command verifies CUDA execution, real filesystem capacity, sequential temporary-file I/O, atomic checkpoint replacement, and checkpoint reload equality. It exits nonzero when a critical condition fails.
+
+`g0_supervisor_probe.sh` is a five-second one-shot workload used to prove that the instance supervisor can own a validation process independently of the initiating SSH connection and atomically publish its completion record.
