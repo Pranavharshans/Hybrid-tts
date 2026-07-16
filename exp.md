@@ -71,7 +71,7 @@ Follow-up:
 | EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | PASS | 0.265 warm RTF and 2.79 GiB peak; full-utterance API misses interactive TTFA |
 | EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PASS | Torch baseline is deterministic and memory-light; 0.592 RTF exposes unoptimized semantic bottleneck |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PASS | 250 randomized chunkings preserve monotonic, lossless committed prefixes |
-| EXP-021 | G2 | Partial-text stability across arrival rates | PLANNED | — |
+| EXP-021 | G2 | Partial-text stability across arrival rates | PASS | Stable at all rates; two-word safety alone cannot meet the TTFA target |
 | EXP-030 | G3 | Token/data pipeline integrity | PLANNED | — |
 | EXP-031 | G3 | 100-sample deliberate overfit | PLANNED | — |
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PLANNED | — |
@@ -303,3 +303,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Incremental English commitment is mechanically feasible without model training, provided the online layer limits itself to prefix-stable normalization and maintains lookahead. Context-sensitive expansions such as abbreviations, currency, dates, and ambiguous numbers must be performed only inside the uncommitted region or by a downstream tokenizer with an explicit stability contract.
 
 **Follow-up:** EXP-021 will replay the suite at multiple text-arrival rates against measured component service times, quantifying commitment delay, buffer occupancy, underruns, and the AR/block switching region.
+
+### EXP-021 — Partial-text stability across arrival rates
+
+- **Gate:** G2
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Quantify the latency cost of stable two-word lookahead when English text arrives incrementally, and distinguish upstream text starvation from GPU/model latency.
+
+**Configuration:** The ten-prompt EXP-020 suite was normalized first and replayed at 5, 10, 20, and 40 characters per second on a 20 ms clock. Every newly committed character was timestamped. Forty scenarios measured first commitment, p50/p95 character commitment lag, event count, and maximum pending characters.
+
+**Acceptance criteria:** All 40 scenarios finalize losslessly, every character receives a nonnegative commit timestamp, every arrival rate is represented, and pending text remains bounded.
+
+**Results:** PASS for stability, with a product-significant latency finding. All 40 scenarios were lossless and bounded; maximum pending text was 23 characters at every rate. Median first-commit time was `2.10 s` at 5 chars/s, `1.05 s` at 10 chars/s, `0.53 s` at 20 chars/s, and `0.27 s` at 40 chars/s. Across prompts, median character commitment lag was respectively `1.40`, `0.70`, `0.35`, and `0.18 s`; aggregate p95 commitment lag was `4.2825`, `2.1413`, `1.0765`, and `0.5283 s`. Raw local evidence SHA-256 was `da4dd1e196d6014b37894ad534361d28387d71c9612b741f995ec88e758b09e1`.
+
+**Decision:** Stable committed text alone cannot deliver the `<150 ms` TTFA target, even at a fast 40 chars/s input stream, because two-word lookahead delays the first safe prefix to 270 ms before inference begins. The architecture therefore needs two confidence classes: speculative/revocable text may feed the AR startup path before full commitment, while block generation must consume only stable committed spans. Playback release needs a short revision window or explicit LLM token-commit signal. At slow arrival rates the input source, not the GPU, is necessarily the limiting factor; underrun metrics must be conditioned on supplied-text rate.
+
+**Follow-up:** Preserve the stable committer as the block-path contract. In G3/G4, validate semantic token and training pipelines; in G5, simulate speculative AR startup, stable block continuation, buffer thresholds, cancellation, and rollback before releasing packets.
