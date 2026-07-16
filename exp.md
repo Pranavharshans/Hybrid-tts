@@ -64,7 +64,7 @@ Follow-up:
 | EXP-000 | G0 | Local repository and ledger initialization | PASS | Repository clean; ledger established |
 | EXP-001 | G0 | Remote GPU discovery and SSH connectivity | PASS | Running instance; noninteractive SSH authenticated |
 | EXP-002 | G0 | GPU/CUDA/PyTorch capability validation | PASS | Blackwell-capable cu130 PyTorch; FP16/BF16 CUDA operations valid |
-| EXP-003 | G0 | Disk, network, checkpoint, and recovery validation | PLANNED | — |
+| EXP-003 | G0 | Disk, network, checkpoint, and recovery validation | PASS | 300 GiB available; atomic checkpoints and detached supervisor verified |
 | EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PLANNED | — |
 | EXP-011 | G1 | MOSS latency and resource profile | PLANNED | — |
 | EXP-012 | G1 | Chatterbox installation and smoke inference | PLANNED | — |
@@ -149,3 +149,24 @@ Follow-up:
 **Decision:** PASS. The installed framework is architecture-compatible and suitable for lean mixed-precision training.
 
 **Follow-up:** Validate disk safety, persistent job supervision, checkpoint integrity, and off-instance recovery in EXP-003.
+
+### EXP-003 — Disk, checkpoint, supervision, and recovery validation
+
+- **Gate:** G0
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Prove that the real instance filesystem, checkpoint path, detached process manager, repository synchronization, and off-instance evidence path are safe enough for unattended validation.
+
+**Configuration:** `/workspace` container storage with a 300 GiB allocation and no attached Vast volume; 35 GiB hard safety floor; 64 MiB fsync-backed I/O probe; atomic PyTorch checkpoint; one-shot Supervisor process; GitHub as code/ledger authority and SSH copy for compact raw evidence.
+
+**Acceptance criteria:** At least 35 GiB free; nonzero practical read/write throughput; atomically saved checkpoint reloads with identical model tensors, optimizer state, and stable SHA-256; a Supervisor-owned workload completes after its initiating SSH session ends; code can synchronize from the public repository; evidence can be copied off the non-volume-backed instance.
+
+**Commands/artifacts:** `validation/g0_environment.py`; `validation/g0_supervisor_probe.sh`; `validation/supervisor/nano-flash-probe.conf`; ignored raw artifacts `artifacts/g0/environment.json` and `artifacts/g0/supervisor-probe.json`.
+
+**Results:** The filesystem reported 300.000 GiB total and 299.959 GiB free. The fsync-backed temporary write measured 419.674 MiB/s and the warm sequential read measured 2343.289 MiB/s. A real CUDA training step was saved atomically; model tensors matched exactly after reload, optimizer state was present, and the checkpoint digest remained stable. The Supervisor probe completed five seconds after launch and published its atomic completion record after the launching SSH session had closed. Compact evidence was copied off-instance and hashed locally (`31452c…20534` for the environment record and `fe5be7…5312` for the supervisor record). The instance manifest confirms `/workspace` is not a volume, so Git and off-instance copies remain mandatory. An initial anonymous clone failed while the repository was private; after the user made it public, a clean clone at the pushed revision succeeded. The probe also exposed a missing executable bit, which was corrected and pushed in commit `e42b1bd`.
+
+**Decision:** PASS. G0 is complete; the environment can run recoverable unattended jobs within the defined storage policy.
+
+**Follow-up:** Begin G1 by installing MOSS-TTS-Nano in an isolated project environment and running deterministic smoke inference before profiling.
