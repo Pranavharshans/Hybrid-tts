@@ -73,7 +73,7 @@ Follow-up:
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PASS | 250 randomized chunkings preserve monotonic, lossless committed prefixes |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PASS | Stable at all rates; two-word safety alone cannot meet the TTFA target |
 | EXP-030 | G3 | Token/data pipeline integrity | PASS | Official codec and SFT packer produce deterministic valid 100-record corpus |
-| EXP-031 | G3 | 100-sample deliberate overfit | RUNNING | Forty-step BF16 full-model SFT launched on repeated English corpus |
+| EXP-031 | G3 | 100-sample deliberate overfit | PASS | Loss fell 90.4% in 40 steps; finite reloadable checkpoint produced |
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PLANNED | — |
 | EXP-040 | G4 | Lean English AR adaptation | PLANNED | — |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | PLANNED | — |
@@ -343,3 +343,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** The official pretrained tokenizer and SFT packing/masking pipeline are suitable for the lean training gates. Repeating one utterance is intentional only for plumbing and overfit validation; it provides no evidence of generalization or production voice quality.
 
 **Follow-up:** Run EXP-031 as a short full-model deliberate overfit with loss-decrease and finite-gradient criteria, retaining only compact checkpoints. Then prove restart equivalence in EXP-032.
+
+### EXP-031 — 100-sample deliberate overfit
+
+- **Gate:** G3
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Prove that the complete pretrained MOSS semantic model can backpropagate through the official packed English data, rapidly memorize a deliberately trivial corpus, and emit a finite reloadable checkpoint on the 16 GiB GPU.
+
+**Configuration:** Full-model BF16 SFT; 100 repeated English records from EXP-030; maximum length 512; batch size 1; 40 optimizer steps; AdamW learning rate `1e-4`; no weight decay or warmup; linear decay; gradient norm cap 1; SDPA; audio-weight total 32 versus text weight 1; seed `20260716`.
+
+**Attempt 1:** Training stopped before the first optimizer step because the official trainer assumes model and tokenizer assets share one directory, while the published checkpoint separates them. Commit `f2f33f9` created a deterministic merged local model view from the two pinned snapshots without altering upstream source or weights, and the same training configuration was rerun.
+
+**Results:** PASS. All 40 steps logged finite loss. Loss decreased monotonically from `5.6598` at step 1 to `0.5437` at step 40, a final/initial ratio of `0.0961` or 90.4% reduction. The first measured step took 0.95 s, while the warmed final step took 0.10 s. The reloadable checkpoint contains 194 finite tensors, occupies 285,015,275 bytes, and has SHA-256 `8a363d330a35b9a0a2aaafecaa0b682b5bbd26fb9906282f6bf26f8723918cf8`. All ten acceptance checks passed. Summary JSON SHA-256 is `71c16cf73c9132eb2f90055523a078eeacdd9cf7596dd8276c0be4ad480d1589`.
+
+**Decision:** The pretrained MOSS training stack is learnable and stable on the RTX 5060 Ti with substantial memory headroom, so training from scratch is unnecessary for the lean validation. This experiment demonstrates optimization/plumbing only; because every record is the same utterance, it provides zero generalization or production-quality evidence.
+
+**Follow-up:** EXP-032 will test checkpoint reload and continuation. The upstream trainer's checkpoint format currently saves model/config/tokenizer but not optimizer, scheduler, or RNG state; exact interrupted-run equivalence must therefore be treated as unproven unless the harness adds stateful recovery.
