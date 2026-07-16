@@ -79,7 +79,7 @@ Follow-up:
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | FAIL | Adapted WER regresses 19% to 32% through clause/utterance truncation |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PASS | Seven tests validate lossless packets, routing, buffer safety, fallback, and cancellation |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PASS | Measured stack has no feasible case; optimized AR 0.75/block 0.20 RTF passes all text-sufficient cases |
-| EXP-060 | G6 | Renderer target caching | PLANNED | — |
+| EXP-060 | G6 | Renderer target caching | RUNNING | Caching ten Nano semantic/renderer pairs and verifying exact rerender |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PLANNED | — |
 | EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
 | EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
