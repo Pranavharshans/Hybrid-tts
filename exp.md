@@ -78,7 +78,7 @@ Follow-up:
 | EXP-040 | G4 | Lean English AR adaptation | PASS | Stable 100-step adaptation improves disjoint-speaker held-out loss by 0.424% |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | FAIL | Adapted WER regresses 19% to 32% through clause/utterance truncation |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PASS | Seven tests validate lossless packets, routing, buffer safety, fallback, and cancellation |
-| EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PLANNED | — |
+| EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | RUNNING | Replaying 324 measured/optimized arrival, buffer, block, and cancel scenarios |
 | EXP-060 | G6 | Renderer target caching | PLANNED | — |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PLANNED | — |
 | EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
