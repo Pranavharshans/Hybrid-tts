@@ -67,8 +67,9 @@ Follow-up:
 | EXP-003 | G0 | Disk, network, checkpoint, and recovery validation | PASS | 300 GiB available; atomic checkpoints and detached supervisor verified |
 | EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PASS | Deterministic CUDA inference produced valid 7.68 s English audio |
 | EXP-011 | G1 | MOSS latency and resource profile | PASS | Warm TTFA passes target; RTF 1.13 exposes semantic-generation bottleneck |
-| EXP-012 | G1 | Chatterbox installation and smoke inference | PLANNED | — |
-| EXP-013 | G1 | Chatterbox latency and resource profile | PLANNED | — |
+| EXP-012 | G1 | Chatterbox access and isolated environment validation | PASS | Flash CUDA/ABI stack valid; gated Nano revision downloaded without persisting credentials |
+| EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | PLANNED | — |
+| EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PLANNED | — |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PLANNED | — |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PLANNED | — |
 | EXP-030 | G3 | Token/data pipeline integrity | PLANNED | — |
@@ -213,3 +214,25 @@ Follow-up:
 **Decision:** PASS as a reproducible G1 profile. MOSS already demonstrates a viable low-latency AR startup path on the RTX 5060 Ti, so the architecture does not need a new startup model merely to reach first audio. It is not viable as the steady-state path on this GPU: semantic frame generation dominates and the existing codec is secondary. This directly supports the proposed hybrid split—retain AR for startup/fallback and target semantic continuation throughput with block generation—while showing that renderer-only optimization cannot close the full RTF gap.
 
 **Follow-up:** Profile the official Chatterbox baseline under the same timing contract, then use both baselines to set G2/G5 simulator arrival rates and the minimum block-continuation speedup required for realtime operation.
+
+### EXP-012 — Chatterbox access and isolated environment validation
+
+- **Gate:** G1
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+- **Harness commit:** `b470907`
+
+**Goal:** Establish reproducible, non-conflicting runtime foundations for the official Chatterbox-Nano and Chatterbox-Flash checkpoints on Blackwell before measuring either model, while proving gated Nano access without storing credentials.
+
+**Configuration:** Official Chatterbox source commit `65b18437192794391a0308a8f705b1e33e633948`; official Chatterbox-Flash source commit `74e05baa8ce574bf2cc571702391a21f1b0d48c5`; official Nano demo Space commit `647b4e895d3483995e5a6546999aa5e50490b92b`; public Flash checkpoint revision `4385507288b8197e6dab8b4e6b1603328d549d9d`; gated Nano checkpoint revision `493317046f21b7e557146a9285a111c050564bb4`. Flash uses a dedicated Python 3.12 environment with PyTorch/torchaudio `2.7.1+cu128`, Transformers `5.2.0`, and pure Torch SDPA. User-authorized Hugging Face credentials were passed only through one process environment and were not written to Git, the ledger, Supervisor, or logs.
+
+**Acceptance criteria:** Exact source revisions pinned; gated Nano repository authorization succeeds and the complete exact snapshot is cached; Flash dependencies remain isolated from MOSS; PyTorch and torchaudio ABI versions match; CUDA 12.8 sees Blackwell compute capability 12.0; a BF16 CUDA matrix multiplication is finite; the official Flash package imports; compact evidence is atomically written.
+
+**Commands/artifacts:** `validation/setup_chatterbox_flash.sh`; `validation/supervisor/chatterbox-flash-setup.conf`; remote summary `/workspace/nano-flash-artifacts/g1/chatterbox-flash-setup/environment.json` with SHA-256 `5c22c973…946efc`; gated Nano cache `/workspace/.hf_home/hub/models--ResembleAI--chatterbox-nano/snapshots/493317046f21b7e557146a9285a111c050564bb4`.
+
+**Results:** All environment checks passed. The isolated stack reports RTX 5060 Ti compute capability 12.0, CUDA 12.8, matching PyTorch/torchaudio `2.7.1+cu128`, successful BF16 CUDA execution in `0.2089 s`, and a successful `chatterbox-flash==0.1.0` import. The Flash environment occupies 7.3 GiB. Nano initially returned HTTP 401 as expected for an unaccepted gated model; after the user supplied an authorized token, all 13 files at the pinned 2.8 GiB revision downloaded successfully without credential persistence. Disk remains safe at 290 GiB free. Source inspection found an upstream packaging split: the public `chatterbox-tts==0.1.7` GitHub tree does not contain `ChatterboxNanoTTS`; the official Nano loader and Nano-specific T3 inference changes are instead present in the pinned demo Space. That Space pins PyTorch/torchaudio 2.11 and Transformers 4.46.3, whereas Flash pins a PyTorch 2.7 ABI family and Transformers 5.2.0.
+
+**Decision:** PASS. Do not force Nano and Flash into one environment and do not modify the already validated MOSS environment. Use the official pinned Nano Space source in a dedicated PyTorch 2.11 CUDA 13.0 environment, and use the official Flash repository in its existing PyTorch 2.7 CUDA 12.8 environment. Begin Flash with Torch SDPA; treat FlashInfer as a separate later optimization because it adds compiled ABI and architecture risk.
+
+**Follow-up:** Build and validate the dedicated Nano environment, then run deterministic Nano and Flash smoke/profile experiments using local pinned snapshots and the same structural/latency evidence contract.
