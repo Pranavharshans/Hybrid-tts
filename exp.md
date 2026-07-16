@@ -83,7 +83,7 @@ Follow-up:
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PASS | One step is RTF 0.024 but diverges strongly; retain already-fast two-step default |
 | EXP-069 | G7 | FlashInfer Blackwell compatibility | PASS | Locked backend preserves ABI and executes fused CUDA kernel on Blackwell |
 | EXP-070 | G7 | Optimized pretrained block benchmark and training decision | PASS | FlashInfer graph block-32 reaches RTF 0.101; frozen-head training deferred |
-| EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
+| EXP-071 | G7 | Torch versus optimized block throughput/quality comparison | RUNNING | Generating 30 challenge WAVs and frozen-ASR comparison |
 | EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
 | EXP-081 | G8 | Final adversarial streaming matrix | PLANNED | — |
 
