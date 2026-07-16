@@ -62,7 +62,7 @@ Follow-up:
 | ID | Gate | Experiment | Status | Result |
 | --- | --- | --- | --- | --- |
 | EXP-000 | G0 | Local repository and ledger initialization | PASS | Repository clean; ledger established |
-| EXP-001 | G0 | Remote GPU discovery and SSH connectivity | PLANNED | — |
+| EXP-001 | G0 | Remote GPU discovery and SSH connectivity | PASS | Running instance; noninteractive SSH authenticated |
 | EXP-002 | G0 | GPU/CUDA/PyTorch capability validation | PLANNED | — |
 | EXP-003 | G0 | Disk, network, checkpoint, and recovery validation | PLANNED | — |
 | EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PLANNED | — |
@@ -107,3 +107,24 @@ Follow-up:
 **Decision:** PASS. Proceed to remote GPU discovery and environment validation.
 
 **Follow-up:** Complete EXP-001 and append the discovered SSH/runtime facts without recording credentials.
+
+### EXP-001 — Remote GPU discovery and SSH connectivity
+
+- **Gate:** G0
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Discover the active Vast instance endpoint through the provider API and prove unattended, noninteractive SSH access with the registered local identity.
+
+**Configuration:** Vast instance `45075107`, machine `143755`, direct SSH transport, root container user, batch authentication, bounded connection timeout.
+
+**Acceptance criteria:** Provider reports the requested instance running; an SSH URL can be derived; a locally registered identity matches the account; `BatchMode=yes` authentication succeeds without interactive input.
+
+**Commands/artifacts:** Read-only Vast instance query and SSH URL query; remote `id`/hostname connectivity probe. Credentials, public endpoint, and API response tokens are intentionally excluded from Git.
+
+**Results:** The provider reported the instance as running with the requested RTX 5060 Ti configuration. The account had a registered SSH public key matching an existing local private identity. Noninteractive authentication succeeded as `root`, and the remote container returned a stable hostname.
+
+**Decision:** PASS. The instance can support unattended orchestration from this workspace.
+
+**Follow-up:** Run GPU, CUDA, PyTorch, memory, storage, process-persistence, and checkpoint-integrity validation in EXP-002/003.
