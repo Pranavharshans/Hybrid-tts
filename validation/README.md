@@ -42,3 +42,5 @@ The current Blackwell image ships PyTorch 2.12 without a matching torchaudio whe
 `setup_chatterbox_flash.sh` creates a separate Python 3.12 environment for the exact official Chatterbox and Chatterbox-Flash source revisions. It installs the upstream-supported PyTorch 2.7.1 CUDA 12.8 ABI family, validates a real Blackwell BF16 kernel, and writes an atomic environment record. This isolation is mandatory: Chatterbox's metadata pins an older Torch/torchaudio pair and must not alter the working MOSS PyTorch 2.12 CUDA 13.0 environment.
 
 The first reproducible backend is pure Torch SDPA. FlashInfer remains a later optimization experiment because its compiled extension adds an independent ABI and GPU-architecture risk.
+
+`setup_chatterbox_nano.sh` separately recreates the official Nano demo Space's PyTorch 2.11 and Transformers 4.46 framework family with CUDA 13.0 Blackwell wheels. It imports the Nano-only loader from the exact pinned official Space source and consumes the gated checkpoint only through its already downloaded immutable local snapshot. No Hugging Face credential is needed or stored for later offline runs.
