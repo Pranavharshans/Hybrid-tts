@@ -77,7 +77,7 @@ Follow-up:
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PASS | Restored step exactly matches uninterrupted loss, model, and optimizer hashes |
 | EXP-040 | G4 | Lean English AR adaptation | PASS | Stable 100-step adaptation improves disjoint-speaker held-out loss by 0.424% |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | FAIL | Adapted WER regresses 19% to 32% through clause/utterance truncation |
-| EXP-050 | G5 | Streaming scheduler and packetizer | RUNNING | Validating packet, buffer, routing, fallback, and cancellation invariants |
+| EXP-050 | G5 | Streaming scheduler and packetizer | PASS | Seven tests validate lossless packets, routing, buffer safety, fallback, and cancellation |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PLANNED | — |
 | EXP-060 | G6 | Renderer target caching | PLANNED | — |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PLANNED | — |
@@ -423,3 +423,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Reject the EXP-040 adapted checkpoint. A 0.424% teacher-forced loss improvement did not predict generation quality and concealed severe early-EOS/truncation regression. Retain the untouched pretrained MOSS model as the AR startup baseline. Any later adaptation must include EOS-aware sampling, longer/more varied data, and generation-based checkpoint selection; training from scratch remains unjustified.
 
 **Follow-up:** G4 is complete with a negative candidate-selection result. Build G5 around the retained pretrained AR measurements, Nano renderer timings, stable/unstable text classes, packet buffering, cancellation, and explicit underrun accounting.
+
+### EXP-050 — Streaming scheduler and packetizer
+
+- **Gate:** G5
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Establish deterministic runtime invariants before combining model timing: lossless 80 ms PCM packetization, bounded playback-buffer accounting, speculative-text isolation, stable block eligibility, low-buffer AR fallback, and immediate cancellation.
+
+**Configuration:** 24 kHz mono float PCM; 1,920-sample/80 ms packets; 640 ms nominal semantic blocks; 240 ms block-switch buffer threshold. AR may consume speculative text; block mode may consume only stable text. Cancellation discards all queued future audio and permanently disables further scheduling for that request.
+
+**Acceptance criteria:** Fragmentation-independent lossless packetization including final tail; block selection only with sufficient buffer and stable span; AR fallback below threshold; no negative buffer; cancellation empties queued audio and rejects subsequent generation.
+
+**Results:** PASS. Seven unit tests completed in 31 ms. Packetizing 5,000 samples produced exact lengths 1,920/1,920/1,160 and reconstructed the source byte-for-byte. Fragmenting a 7,680-sample input into 137-sample writes produced exactly the same packets as a single write. All routing, buffer, and cancellation invariants passed.
+
+**Decision:** The serving-state contract is implementable independently of model internals. Speculative text is confined to AR startup; stable text and adequate playback headroom are mandatory for block work. This protects already released audio from text revision and makes cancellation behavior explicit.
+
+**Follow-up:** EXP-051 will drive this state machine with measured MOSS AR and Flash block timing over arrival rates, block sizes, switch thresholds, cancellations, and component-speed counterfactuals to find the feasible operating region.
