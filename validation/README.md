@@ -36,3 +36,9 @@ The current Blackwell image ships PyTorch 2.12 without a matching torchaudio whe
 `moss_profile.py` loads exact local Hugging Face model, nested text-tokenizer, and audio-tokenizer snapshots once in offline mode, primes the model and codec, then runs three uninstrumented deterministic requests for warm TTFA, RTF, chunk timing, VRAM, and output repeatability. A fourth synchronized run separately attributes wall time to prompt encoding, semantic generation, codec decoding, and orchestration/I/O. Product-target comparisons are reported as baseline facts; they are not part of the profiling experiment's pass condition.
 
 `run_moss_profile.sh` contains the immutable snapshot paths used on the validation instance. `supervisor/moss-profile.conf` keeps the run alive across SSH disconnects.
+
+## G1 Chatterbox-Flash environment
+
+`setup_chatterbox_flash.sh` creates a separate Python 3.12 environment for the exact official Chatterbox and Chatterbox-Flash source revisions. It installs the upstream-supported PyTorch 2.7.1 CUDA 12.8 ABI family, validates a real Blackwell BF16 kernel, and writes an atomic environment record. This isolation is mandatory: Chatterbox's metadata pins an older Torch/torchaudio pair and must not alter the working MOSS PyTorch 2.12 CUDA 13.0 environment.
+
+The first reproducible backend is pure Torch SDPA. FlashInfer remains a later optimization experiment because its compiled extension adds an independent ABI and GPU-architecture risk.
