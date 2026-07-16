@@ -85,7 +85,7 @@ Follow-up:
 | EXP-070 | G7 | Optimized pretrained block benchmark and training decision | PASS | FlashInfer graph block-32 reaches RTF 0.101; frozen-head training deferred |
 | EXP-071 | G7 | Torch versus optimized block throughput/quality comparison | FAIL | Block-32 improves WER to 9% at 0.133 RTF; block-16 narrowly misses the strict 0.20 RTF criterion |
 | EXP-080 | G8 | Integrated AR/block switching | FAIL | Pretrained AR and block checkpoints have incompatible semantic/state interfaces |
-| EXP-081 | G8 | Final adversarial streaming matrix | RUNNING | Testing measured block-32 with real and required AR timing across 1,536 cases |
+| EXP-081 | G8 | Final adversarial streaming matrix | PASS | Harness robust; real AR has 0/80 feasible cases, required AR has 80/80; architecture remains blocked |
 
 ## Records
 
@@ -580,3 +580,59 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** The already-trained components validate subsystems but cannot be assembled into the PRD's proposed shared-backbone hybrid. A waveform crossfade demo would conceal this interface failure and is not accepted as integration evidence. G8 requires an original common semantic representation/backbone plus separately trained AR and block heads, or a continuation head trained directly on one retained model's states.
 
 **Follow-up:** EXP-081 will still stress the scheduler with the measured block-32 RTF and both measured and required AR profiles. This separates the software/runtime feasible region from the checkpoint-compatibility blocker and produces the final architecture verdict evidence.
+
+### EXP-081 — Final adversarial streaming matrix
+
+- **Gate:** G8
+- **Status:** PASS (harness), architecture result FAIL
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Re-run the complete streaming feasibility test using the qualified FlashInfer graph block-32 measurement, while separating the real retained AR profile from the AR performance required by the design.
+
+**Configuration:** 1,536 deterministic cases: three profiles; arrival rates 5/10/14.9/15/20/40/80/1000 characters per second; generation quanta 80/160/320/640 ms; switch buffers 80/160/240/480 ms; cancellation at none/0.25/1.0/2.5 seconds. All profiles use measured Flash block RTF `0.1326595`. AR profiles are measured MOSS (`TTFA 0.1371`, RTF `1.1256`), required (`0.1000`, `0.7500`), and margin (`0.0800`, `0.5000`).
+
+**Acceptance criteria:** Full matrix; no negative buffer; every cancellation within one 80 ms packet; measured MOSS remains correctly classified as infeasible; required AR exposes a feasible region; exact qualified block timing loaded. Harness success does not override EXP-080 interface compatibility.
+
+**Results:** PASS for the scheduler harness; FAIL for the integrated architecture. All six harness checks passed. Among 80 uncancelled, text-sufficient cases per profile, measured MOSS passed `0/80`, reached block mode in `0/128` total uncancelled cases, and retained a best underrun ratio of `0.15612`. Required AR and margin AR each passed `80/80`, reached block mode in `48/128` cases, and achieved zero best-case underrun. Every cancellation and buffer invariant passed. Because EXP-080 compatibility is false, the evidence correctly reports `architecture_pass: false`. Final matrix SHA-256 is `02804c6a6b36ea4ecf7fc77039fabf3093ac4189054f32af7151a99f29c572b7`.
+
+**Decision:** Block acceleration is no longer the bottleneck. The remaining mandatory work is a compatible shared semantic model with an incremental AR path below roughly 0.75 RTF and a block-continuation head trained on the same hidden/token state. The current pretrained MOSS plus Chatterbox-Flash pairing cannot validate mixed-mode output, regardless of scheduler correctness.
+
+**Follow-up:** End lean validation with the evidence-weighted verdict below. Retain all generated audio for human listening, but do not let listening override structural incompatibility or the measured handoff deadlock.
+
+## Final lean-validation verdict
+
+**Verdict: NO — the Nano Flash architecture does not work in its current “assemble already-trained components” form.** The underlying hybrid idea remains technically plausible, but reaching it requires training compatible heads on a shared backbone/state space; it cannot be obtained by directly joining the tested MOSS and Chatterbox checkpoints.
+
+### Evidence-weighted progress toward the proposed model
+
+| Gate | Earned | Interpretation |
+| --- | ---: | --- |
+| G0 | 5/5 | Unattended environment and exact recovery validated |
+| G1 | 10/10 | All relevant pretrained baselines installed and profiled |
+| G2 | 10/10 | Incremental-text commitment is safe; TTFA needs speculation |
+| G3 | 15/15 | Data, overfit, optimization, and exact resume validated |
+| G4 | 8/20 | Lean adaptation trains, but generated WER regressed and checkpoint was rejected |
+| G5 | 8/15 | Runtime invariants pass; real AR profile cannot build a handoff buffer |
+| G6 | 10/10 | Pretrained two-step renderer is already comfortably fast |
+| G7 | 10/10 | FlashInfer block-32 meets speed and frozen-ASR quality targets |
+| G8 | 0/5 | Semantic/state interfaces are incompatible; no genuine mixed-mode boundary exists |
+| **Total** | **76/100** | **Subsystem feasibility established; final shared hybrid not validated** |
+
+This `76/100` is progress against the technical architecture, not a probability of product success. Experiment coverage is `100%`: every planned lean test reached a terminal result. The decisive negatives are the critical G4 generation regression, real-stack G5 handoff deadlock, and G8 checkpoint incompatibility.
+
+### What is validated
+
+- Reuse pretrained models; do not train the entire TTS stack from scratch.
+- A 16 GB GPU and 300 GB disk are sufficient for this lean program, adaptation, evaluation, and optimized inference.
+- Exact unattended recovery, incremental text control, packet scheduling, cancellation, fast two-step rendering, and sub-0.14 block RTF are feasible.
+- The block-32 candidate improves frozen-ASR WER from 14% to 9% versus the Torch challenge baseline while running about 4.77x faster.
+
+### What must be built next
+
+1. Choose one semantic vocabulary, tokenizer/codec interface, backbone width, speaker-conditioning contract, and audio rate.
+2. Reuse a compatible pretrained backbone where possible, then train a small incremental AR startup head and block-continuation head on that same state space.
+3. Require generation-based checkpoint selection; teacher-forced loss alone accepted a checkpoint that truncated speech.
+4. Re-run G4, G5, and G8 with real shared-state continuation and randomized switch points, followed by blinded boundary listening and speaker-similarity testing.
+
+Manual listening remains useful for the retained WAVs, especially one-step renderer and block-32 samples, but it cannot change the current NO verdict because the failed conditions are architectural and measured rather than perceptual.

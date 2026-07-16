@@ -2,7 +2,7 @@
 
 Nano Flash is a research-stage hybrid text-to-speech architecture for low-latency, multilingual voice agents. The design combines autoregressive (AR) generation for fast speech startup, adaptive block-diffusion generation for efficient buffered continuation, and a one-step causal acoustic renderer.
 
-> Status: architecture and product requirements specification. Nano Flash has not yet been trained or benchmarked, and the targets below require experimental validation.
+> Status: lean English validation complete. Verdict: **NO for directly assembling the tested pretrained components; 76/100 progress toward the proposed architecture.** The block and renderer subsystems are fast enough, but a genuine hybrid requires compatible AR/block heads trained on one shared semantic state space. See [`exp.md`](exp.md) for the complete evidence ledger.
 
 ## Core idea
 
@@ -93,6 +93,19 @@ The main acceptance areas are:
 - voice quality: speaker similarity, naturalness, prosody, and emotion adherence;
 - hybrid continuity: human preference and artifact detection at AR-to-block boundaries;
 - robustness: repetition, skipping, hallucination, long-form output, and noisy references.
+
+## Lean validation outcome
+
+The complete unattended program ran on one 16 GB RTX 5060 Ti with a 300 GB disk envelope. Every planned experiment reached a terminal result. Important findings:
+
+- exact checkpoint/recovery and lean adaptation are feasible without training from scratch;
+- the lean MOSS adaptation was rejected because generated WER regressed from 19% to 32% despite a small held-out loss improvement;
+- Nano's released two-step renderer is already fast at about 0.066 RTF;
+- FlashInfer CUDA-graph block-32 reached about 0.133 RTF on the diverse challenge suite and improved frozen-ASR WER from 14% to 9% versus Torch block-16;
+- measured MOSS AR at 1.126 RTF cannot accumulate a handoff buffer, while a 0.75 RTF AR counterfactual passes all text-sufficient final stress cases;
+- MOSS and Chatterbox-Flash checkpoints use incompatible hidden widths, semantic token spaces, state APIs, and native audio rates, so they cannot perform a genuine shared-state handoff.
+
+The result validates the design's subsystem choices but not the final assembled model. The next efficient step is to reuse one compatible pretrained backbone and train only the incremental AR and block-continuation heads on a common representation, then repeat the failed G4/G5/G8 gates.
 
 ## Repository contents
 
