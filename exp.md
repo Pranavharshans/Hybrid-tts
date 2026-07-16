@@ -80,7 +80,7 @@ Follow-up:
 | EXP-050 | G5 | Streaming scheduler and packetizer | PASS | Seven tests validate lossless packets, routing, buffer safety, fallback, and cancellation |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PASS | Measured stack has no feasible case; optimized AR 0.75/block 0.20 RTF passes all text-sufficient cases |
 | EXP-060 | G6 | Renderer target caching | PASS | Tokens, conditioning, and RNG reproduce ten waveforms exactly at renderer RTF 0.038 |
-| EXP-061 | G6 | One-step/two-step renderer feasibility | RUNNING | Comparing cached two-step targets with one-step meanflow output |
+| EXP-061 | G6 | One-step/two-step renderer feasibility | PASS | One step is RTF 0.024 but diverges strongly; retain already-fast two-step default |
 | EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
 | EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
 | EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
@@ -482,3 +482,24 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Nano's pretrained renderer is already substantially faster than the end-to-end target and deterministic under a complete cache contract. Do not train or distill a replacement during lean validation. Cache tokens, conditioning, and renderer noise state for all later renderer/block experiments; watermarking remains a separate postprocess.
 
 **Follow-up:** EXP-061 will compare one versus two meanflow steps on the same cached targets, quantifying speed and objective waveform/spectral deviation. Manual listening remains required before any one-step quality claim.
+
+### EXP-061 — One-step/two-step renderer feasibility
+
+- **Gate:** G6
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Test whether reducing Nano meanflow rendering from its released two steps to one produces valid, faster audio and quantify objective deviation from exact cached two-step targets.
+
+**Configuration:** Ten EXP-060 caches with identical semantic tokens, reference dictionary, and renderer RNG state. Render each item with two steps to revalidate the cache and with one step from the identical starting noise. Measure RTF, speedup, normalized RMSE, cosine similarity, log-spectral L1, and SNR.
+
+**Acceptance criteria:** Ten pairs; exact two-step cache reproduction; finite one-step output with identical shape; every one-step RTF below 0.20. Objective similarity is reported rather than used as an automatic quality pass because waveform error is not a perceptual listening metric.
+
+**Attempt 1:** The cached reference dictionary was passed positionally into the `ref_wav` argument, so rendering stopped before measurement. Commit `36a1cab` used explicit `speech_tokens=` and `ref_dict=` keywords; the complete comparison was rerun.
+
+**Results:** PASS for structural/speed feasibility. Two-step targets reproduced exactly. Mean two-step RTF was `0.06565`; one-step RTF was `0.02350`, a `2.5268x` speedup. However, one-step output differed substantially from the released target: mean cosine similarity `0.77165`, normalized RMSE `0.66413`, SNR `3.7258 dB`, and log-spectral L1 `0.01464`. Summary JSON SHA-256 is `8ff6193291163c7e6a4898c5ecae1530c1979b194a7366f4170a1f5c22822882`.
+
+**Decision:** One-step execution works and is very fast, but objective deviation is too large for an automatic quality endorsement. The released two-step renderer already consumes far below the total RTF budget, so retain two steps as the lean default. Consider one step only after blinded listening or a perceptual metric demonstrates acceptable quality; renderer optimization is not the critical bottleneck.
+
+**Follow-up:** G6 is complete. Move to G7 block acceleration: first test whether FlashInfer can be installed and run on Blackwell, then compare Torch/CUDA-graph/block sizes. Only train a frozen block head if optimized pretrained inference remains short of the required RTF.
