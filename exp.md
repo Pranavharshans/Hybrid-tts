@@ -70,7 +70,7 @@ Follow-up:
 | EXP-012 | G1 | Chatterbox access and isolated environment validation | PASS | Flash CUDA/ABI stack valid; gated Nano revision downloaded without persisting credentials |
 | EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | PASS | 0.265 warm RTF and 2.79 GiB peak; full-utterance API misses interactive TTFA |
 | EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PASS | Torch baseline is deterministic and memory-light; 0.592 RTF exposes unoptimized semantic bottleneck |
-| EXP-020 | G2 | Incremental-text simulator and prompt suite | PLANNED | — |
+| EXP-020 | G2 | Incremental-text simulator and prompt suite | PASS | 250 randomized chunkings preserve monotonic, lossless committed prefixes |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PLANNED | — |
 | EXP-030 | G3 | Token/data pipeline integrity | PLANNED | — |
 | EXP-031 | G3 | 100-sample deliberate overfit | PLANNED | — |
@@ -284,3 +284,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** The released Flash components work on the 16 GiB GPU, but the pure Torch path misses both latency targets and is slower than Nano. This result does not invalidate block diffusion: the repository's optimized claims depend on FlashInfer and CUDA graphs, neither of which was enabled in this compatibility-first baseline. It does show that the semantic model—not the renderer—is again the dominant cost, and that the public wrapper's complete-waveform return prevents native interactive TTFA measurement. Reuse the pretrained Flash/Nano components; do not train either stack from scratch. Treat FlashInfer/CUDA graphs and true block-to-audio scheduling as explicit optimization/streaming gates rather than assumed capabilities.
 
 **Follow-up:** Close G1 with a comparative component decision, then implement the G2 incremental-text simulator. Later G7 optimization will test whether FlashInfer/CUDA graphs materially change the block baseline on Blackwell before selecting or adapting a frozen block head.
+
+### EXP-020 — Incremental-text simulator and prompt suite
+
+- **Gate:** G2
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Prove that English text arriving in arbitrary fragments can be converted into an append-only committed prefix without revising text associated with audio already released to the listener.
+
+**Configuration:** Ten English prompt classes covering plain prose, currency/date numbers, abbreviations, email, URL, contractions, quotation, Unicode punctuation, time notation, and long-form input. Each prompt was split 25 ways using deterministic random chunk widths of 1–9 characters. The committer retains two completed words of lookahead but may commit earlier at clause or sentence boundaries. Only prefix-stable surface normalization is allowed online; context-sensitive verbalization remains deferred.
+
+**Acceptance criteria:** Every intermediate committed value extends the previous value; committed plus pending text exactly reconstructs all normalized received text; finalization is lossless; incomplete tails retain two words; punctuation and Unicode surface normalization behave deterministically.
+
+**Results:** PASS. All four test groups passed. Across 250 randomized prompt/chunking combinations, every committed prefix was monotonic and every finalized string exactly matched normalized input. Dedicated tests confirmed a two-word incomplete tail, immediate sentence-boundary commitment, and stable conversion of curly quotes and em dashes. An initial unit-test expectation incorrectly assumed three held words; the implementation correctly held the configured two words, and only the assertion was corrected before accepting the run.
+
+**Decision:** Incremental English commitment is mechanically feasible without model training, provided the online layer limits itself to prefix-stable normalization and maintains lookahead. Context-sensitive expansions such as abbreviations, currency, dates, and ambiguous numbers must be performed only inside the uncommitted region or by a downstream tokenizer with an explicit stability contract.
+
+**Follow-up:** EXP-021 will replay the suite at multiple text-arrival rates against measured component service times, quantifying commitment delay, buffer occupancy, underruns, and the AR/block switching region.

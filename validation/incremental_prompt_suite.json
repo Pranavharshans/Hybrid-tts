@@ -1,0 +1,12 @@
+[
+  {"id": "plain", "text": "Hello there, welcome to the Nano Flash validation."},
+  {"id": "number", "text": "Your total is $12.50, due on July 21st."},
+  {"id": "abbreviation", "text": "Dr. Smith moved to the U.S. in 2024."},
+  {"id": "email", "text": "Email alex@example.com when the test finishes."},
+  {"id": "url", "text": "Visit example.com/docs for the latest guide."},
+  {"id": "contraction", "text": "I don't think it'll rain, but bring a coat."},
+  {"id": "quotation", "text": "She said, \"Please start now, not later.\""},
+  {"id": "unicode", "text": "The user said “hello”—then paused."},
+  {"id": "ambiguous", "text": "The meeting is at 3:05 p.m. tomorrow."},
+  {"id": "long", "text": "When text arrives slowly, the scheduler must preserve enough future context to speak naturally without revising audio that listeners have already heard."}
+]
