@@ -79,7 +79,7 @@ Follow-up:
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | FAIL | Adapted WER regresses 19% to 32% through clause/utterance truncation |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PASS | Seven tests validate lossless packets, routing, buffer safety, fallback, and cancellation |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PASS | Measured stack has no feasible case; optimized AR 0.75/block 0.20 RTF passes all text-sufficient cases |
-| EXP-060 | G6 | Renderer target caching | RUNNING | Caching ten Nano semantic/renderer pairs and verifying exact rerender |
+| EXP-060 | G6 | Renderer target caching | PASS | Tokens, conditioning, and RNG reproduce ten waveforms exactly at renderer RTF 0.038 |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PLANNED | — |
 | EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
 | EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
@@ -461,3 +461,24 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** The hybrid scheduler is viable, but the currently measured MOSS/Flash combination is not. To avoid handoff deadlock, AR continuation must be at least modestly faster than real time (validated counterfactual RTF 0.75) while block generation approaches RTF 0.20. Alternatively, block work must run concurrently or start from a much smaller incremental unit, neither of which the released APIs currently expose. TTFA cannot be guaranteed when upstream text arrives below speech consumption rate.
 
 **Follow-up:** G5 is complete. In G6, validate that pretrained Nano acoustic targets can be cached and that its one-step renderer is already sufficient. In G7, test FlashInfer/CUDA-graph acceleration and block-size behavior before deciding whether a frozen block head needs lean training.
+
+### EXP-060 — Renderer target caching
+
+- **Gate:** G6
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Prove that expensive semantic generation can be removed from renderer experiments by caching all inputs needed to reproduce Nano's raw one-step acoustic output exactly.
+
+**Configuration:** Official Nano snapshot and English reference conditioning; ten EXP-041 challenge prompts; fixed seed; semantic tokens captured at the S3Gen boundary; raw pre-watermark waveform captured as target; cached conditionals; two meanflow steps. Each cache item was reloaded and rendered through S3Gen alone.
+
+**Acceptance criteria:** Ten entries with nonempty semantic tokens; conditionals cached; every cached raw waveform exactly equals rerendered output; every renderer-only RTF below 0.20.
+
+**Attempt 1:** Tokens and conditioning rerendered quickly but not byte-identically because S3Gen consumes stochastic noise after semantic sampling has advanced the RNG. This established that tokens alone are an incomplete cache contract. Commit `c46fd27` added the CPU/CUDA RNG state at the renderer boundary; all ten items were regenerated and retested.
+
+**Results:** PASS. All ten cached waveforms rerendered bit-for-bit after restoring semantic tokens, conditioning, and exact renderer RNG state. Mean renderer-only RTF was `0.03822`, approximately 26.2x real time; every item was below 0.20. Total cache size including conditioning was 4,063,243 bytes (approximately 3.9 MiB). Summary JSON SHA-256 is `2671043080c64d62a568091496d8346996e915dace1fbc16bd5fa96341f41381`.
+
+**Decision:** Nano's pretrained renderer is already substantially faster than the end-to-end target and deterministic under a complete cache contract. Do not train or distill a replacement during lean validation. Cache tokens, conditioning, and renderer noise state for all later renderer/block experiments; watermarking remains a separate postprocess.
+
+**Follow-up:** EXP-061 will compare one versus two meanflow steps on the same cached targets, quantifying speed and objective waveform/spectral deviation. Manual listening remains required before any one-step quality claim.
