@@ -83,7 +83,7 @@ Follow-up:
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PASS | One step is RTF 0.024 but diverges strongly; retain already-fast two-step default |
 | EXP-069 | G7 | FlashInfer Blackwell compatibility | PASS | Locked backend preserves ABI and executes fused CUDA kernel on Blackwell |
 | EXP-070 | G7 | Optimized pretrained block benchmark and training decision | PASS | FlashInfer graph block-32 reaches RTF 0.101; frozen-head training deferred |
-| EXP-071 | G7 | Torch versus optimized block throughput/quality comparison | RUNNING | Generating 30 challenge WAVs and frozen-ASR comparison |
+| EXP-071 | G7 | Torch versus optimized block throughput/quality comparison | FAIL | Block-32 improves WER to 9% at 0.133 RTF; block-16 narrowly misses the strict 0.20 RTF criterion |
 | EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
 | EXP-081 | G8 | Final adversarial streaming matrix | PLANNED | — |
 
@@ -542,3 +542,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Optimized pretrained block inference already exceeds the required RTF by nearly 2x, so frozen-backbone block-head training is not justified in the lean validation. Select FlashInfer graph block-16 as the conservative speed candidate and block-32 as the maximum-throughput candidate pending quality/intelligibility comparison. Kernel warmup and graph capture are mandatory deployment steps.
 
 **Follow-up:** EXP-071 will synthesize the English challenge suite with Torch block-16, FlashInfer graph block-16, and block-32, compare ASR intelligibility/duration/failures, and retain audio for listening before choosing the block size.
+
+### EXP-071 — Torch versus optimized block throughput/quality comparison
+
+- **Gate:** G7
+- **Status:** FAIL
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Check whether the large throughput gains from FlashInfer CUDA graphs and larger semantic blocks preserve English intelligibility on a varied challenge suite, then choose an integration candidate without relying on speed alone.
+
+**Configuration:** Ten deterministic English prompts covering plain prose, numbers, dates, names, initialisms, contrast, contractions, punctuation, rare words, and a long sentence. Exact pretrained Flash checkpoint; BF16; ten diffusion steps; two-step renderer; identical text, voice, and seed for Torch SDPA block-16, FlashInfer graph block-16, and FlashInfer graph block-32. Thirty WAVs were scored using frozen `openai/whisper-tiny.en` revision `87c7102498dcde7456f24cfd30239ca606ed9063` and the same normalization contract as EXP-041.
+
+**Acceptance criteria:** Three complete ten-prompt groups; finite, non-silent, reasonable-duration audio; WER below 100% in every group; each Flash configuration no more than five absolute WER points worse than Torch; both Flash configurations mean full-pipeline RTF below `0.20`.
+
+**Results:** FAIL under the preset joint acceptance contract, although block-32 is a strong positive candidate. Torch block-16 produced WER `0.14`, CER `0.12291`, and mean RTF `0.63311`. FlashInfer graph block-16 improved WER to `0.09` and CER to `0.08566`, but its diverse-suite mean RTF was `0.20719`, narrowly missing the strict target by `0.00719`. FlashInfer graph block-32 produced the same `0.09` WER and `0.08566` CER at mean RTF `0.13266`, passing both the quality and speed requirements. All 30 outputs were structurally valid. The comparison JSON SHA-256 is `707f8a7bd12b83fb182cb7a9cbc86799032398d7a3b5de4cc74784bd953c7dc5`; retained evidence occupies 6.8 MiB, and 279 GiB remains free.
+
+**Decision:** Do not weaken the acceptance contract or label the three-way experiment a pass. Retire graph block-16 from the preferred path because it lacks margin on this GPU. Promote FlashInfer CUDA-graph block-32 to G8: it is approximately `4.77x` faster than the Torch challenge baseline while improving frozen-ASR WER by five absolute points. Backend/block-size outputs are not numerically identical, so retained audio still requires manual listening before a production quality claim.
+
+**Follow-up:** Integrate the qualified block-32 profile with the scheduler and retained pretrained AR startup path in EXP-080. Measure handoff continuity, buffer behavior, cancellation, and fallback; preserve the distinction between an executable runtime and any counterfactual component used where released APIs cannot expose incremental generation.
