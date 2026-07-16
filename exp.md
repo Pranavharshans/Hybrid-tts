@@ -73,7 +73,7 @@ Follow-up:
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PASS | 250 randomized chunkings preserve monotonic, lossless committed prefixes |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PASS | Stable at all rates; two-word safety alone cannot meet the TTFA target |
 | EXP-030 | G3 | Token/data pipeline integrity | PASS | Official codec and SFT packer produce deterministic valid 100-record corpus |
-| EXP-031 | G3 | 100-sample deliberate overfit | PLANNED | — |
+| EXP-031 | G3 | 100-sample deliberate overfit | RUNNING | Forty-step BF16 full-model SFT launched on repeated English corpus |
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PLANNED | — |
 | EXP-040 | G4 | Lean English AR adaptation | PLANNED | — |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | PLANNED | — |
