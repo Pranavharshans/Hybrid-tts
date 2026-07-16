@@ -80,7 +80,7 @@ Follow-up:
 | EXP-050 | G5 | Streaming scheduler and packetizer | PASS | Seven tests validate lossless packets, routing, buffer safety, fallback, and cancellation |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PASS | Measured stack has no feasible case; optimized AR 0.75/block 0.20 RTF passes all text-sufficient cases |
 | EXP-060 | G6 | Renderer target caching | PASS | Tokens, conditioning, and RNG reproduce ten waveforms exactly at renderer RTF 0.038 |
-| EXP-061 | G6 | One-step/two-step renderer feasibility | PLANNED | — |
+| EXP-061 | G6 | One-step/two-step renderer feasibility | RUNNING | Comparing cached two-step targets with one-step meanflow output |
 | EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
 | EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
 | EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
