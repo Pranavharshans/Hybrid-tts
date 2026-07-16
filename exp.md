@@ -84,7 +84,7 @@ Follow-up:
 | EXP-069 | G7 | FlashInfer Blackwell compatibility | PASS | Locked backend preserves ABI and executes fused CUDA kernel on Blackwell |
 | EXP-070 | G7 | Optimized pretrained block benchmark and training decision | PASS | FlashInfer graph block-32 reaches RTF 0.101; frozen-head training deferred |
 | EXP-071 | G7 | Torch versus optimized block throughput/quality comparison | FAIL | Block-32 improves WER to 9% at 0.133 RTF; block-16 narrowly misses the strict 0.20 RTF criterion |
-| EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
+| EXP-080 | G8 | Integrated AR/block switching | RUNNING | Auditing real pretrained semantic-state compatibility before any handoff claim |
 | EXP-081 | G8 | Final adversarial streaming matrix | PLANNED | — |
 
 ## Records
