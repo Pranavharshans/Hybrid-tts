@@ -1,0 +1,12 @@
+[
+  {"id": "plain", "text": "The research team completed the careful validation before lunch."},
+  {"id": "number", "text": "The final invoice was twelve dollars and fifty cents."},
+  {"id": "date", "text": "Our next meeting begins on July twenty first at three o'clock."},
+  {"id": "name", "text": "Doctor Maya Rodriguez joined the Cambridge laboratory yesterday."},
+  {"id": "letters", "text": "The API sends JSON data through a secure HTTPS connection."},
+  {"id": "contrast", "text": "Please choose the blue folder, not the green folder."},
+  {"id": "contraction", "text": "I don't think we'll finish unless everyone helps."},
+  {"id": "punctuation", "text": "Wait, listen carefully, and then answer the question."},
+  {"id": "rare", "text": "The meticulous engineer calibrated the gyroscope twice."},
+  {"id": "long", "text": "When the incoming text changes unexpectedly, the system should preserve clear speech without repeating or skipping important words."}
+]
