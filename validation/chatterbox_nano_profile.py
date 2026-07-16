@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import soundfile as sf
 import torch
-import torchaudio
 
 
 PROFILE_TEXT = "Hello. This is a deterministic Nano Flash warm latency profile."
@@ -161,7 +161,8 @@ def run_once(
     ending_allocated = torch.cuda.memory_allocated()
     stats = waveform_stats(waveform, model.sr)
     save_started = time.perf_counter()
-    torchaudio.save(str(output_audio), waveform.detach().cpu().float(), model.sr)
+    save_array = waveform.detach().cpu().float().numpy().T
+    sf.write(str(output_audio), save_array, model.sr, subtype="PCM_16")
     save_seconds = time.perf_counter() - save_started
     speech_tokens = captured.get("speech_tokens")
     token_count = int(speech_tokens.numel()) if speech_tokens is not None else 0
