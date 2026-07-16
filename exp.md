@@ -68,7 +68,7 @@ Follow-up:
 | EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PASS | Deterministic CUDA inference produced valid 7.68 s English audio |
 | EXP-011 | G1 | MOSS latency and resource profile | PASS | Warm TTFA passes target; RTF 1.13 exposes semantic-generation bottleneck |
 | EXP-012 | G1 | Chatterbox access and isolated environment validation | PASS | Flash CUDA/ABI stack valid; gated Nano revision downloaded without persisting credentials |
-| EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | RUNNING | Attempt 1 generated valid audio; evidence save failed on undeclared TorchCodec dependency |
+| EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | PASS | 0.265 warm RTF and 2.79 GiB peak; full-utterance API misses interactive TTFA |
 | EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PLANNED | — |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PLANNED | — |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PLANNED | — |
@@ -241,8 +241,9 @@ Follow-up:
 ### EXP-013 — Chatterbox-Nano smoke and warm profile
 
 - **Gate:** G1
-- **Status:** RUNNING
+- **Status:** PASS
 - **Started:** 2026-07-16
+- **Finished:** 2026-07-16
 - **Harness commit:** `0b7d4ea`
 
 **Goal:** Validate the official gated Nano checkpoint end to end and measure fixed-seed warm completion/first-audio time, RTF, semantic versus one-step acoustic cost, conditioning cost, determinism, and VRAM on the target GPU.
@@ -253,4 +254,12 @@ Follow-up:
 
 **Attempt 1:** The model loaded, generated semantic tokens, completed two-step meanflow acoustic inference, and returned audio for the warm-up. The run then failed only when `torchaudio.save` raised `ImportError: TorchCodec is required for save_with_torchcodec`; TorchCodec is not declared by the official Nano requirements. No profile claim was made and no partial JSON was accepted.
 
-**Decision so far:** Correct the evidence writer to use the already installed SoundFile library instead of expanding the runtime with an unrelated codec dependency, rerun the complete experiment, and retain this attempt in the record.
+**Correction:** Commit `95f4a0c` changed only the evidence writer to the already installed SoundFile library, avoiding an unrelated runtime dependency. The entire experiment was rerun from model load; no measurements from attempt 1 were reused.
+
+**Results:** PASS. The corrected run produced deterministic, byte-identical PCM16 WAV evidence on all three measured requests. Each request generated 114 identical semantic tokens and 4.68 s of finite, non-silent audio. Warm full-completion latency was `1.2405 s` p50 and `1.2523 s` p95; warm RTF was `0.2651` p50 and `0.2676` p95, equivalent to approximately 3.77x real time. The three-run latency coefficient of variation was `0.0090`. Cached conditioning took `1.1995 s`; peak allocated VRAM was `2.7891 GiB`. The instrumented request took `1.2116 s`: semantic generation `1.0313 s` (85.1%), one-step acoustic rendering `0.1473 s` (12.2%), watermarking `0.0329 s` (2.7%), and other overhead `0.0012 s`. Model structure contained 178,859,171 T3 parameters, 266,030,919 S3Gen parameters, and 1,423,618 voice-encoder parameters. The T3 core therefore fits the proposal's 150–220M working range, although the complete deployed pipeline is approximately 446.3M parameters. The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-nano-profile/chatterbox-nano-profile.json` with SHA-256 `9d1f0e943c781f916ba59b82214e3530333aa8a383faa78f1b97ef52f2a238a1`.
+
+The released API exposes only full-utterance completion, so its measured first-audio time equals full completion and misses the draft `<250 ms` interactive TTFA target. Its p50 RTF misses the aggressive `<0.20` target by approximately 32.5%, but is comfortably faster than real time and approximately 4.25x faster than the measured MOSS RTF. Percentiles here are sanity statistics over three warm runs, not production percentile estimates.
+
+**Decision:** Nano validates the central reuse hypothesis: its pretrained one-step renderer is fast, deterministic, memory-light, and compatible with the 16 GiB target. It does not validate streaming delivery as released. Semantic generation is the dominant remaining bottleneck, so further work should focus on incremental/block semantic generation and packetized output rather than retraining the renderer from scratch.
+
+**Follow-up:** Profile Chatterbox Flash under the same evidence contract, including its block-generation/streaming surface, then compare MOSS, Nano, and Flash before selecting components for the lean hybrid path.
