@@ -17,6 +17,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--moss-repo", type=Path, required=True)
     parser.add_argument("--model-snapshot", type=Path, required=True)
+    parser.add_argument("--text-tokenizer-snapshot", type=Path, required=True)
     parser.add_argument("--prepared-jsonl", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -30,7 +31,12 @@ def main() -> int:
     tensors = [torch.tensor(record["audio_codes"], dtype=torch.long) for record in records]
     hashes = [hashlib.sha256(tensor.numpy().tobytes()).hexdigest() for tensor in tensors]
     config = AutoConfig.from_pretrained(args.model_snapshot, trust_remote_code=True, local_files_only=True)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_snapshot, trust_remote_code=True, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.text_tokenizer_snapshot,
+        trust_remote_code=True,
+        use_fast=False,
+        local_files_only=True,
+    )
     dataset = MossTTSNanoSFTDataset(records, tokenizer=tokenizer, model_config=config, max_length=512)
     first = dataset[0]
     last = dataset[len(dataset) - 1]

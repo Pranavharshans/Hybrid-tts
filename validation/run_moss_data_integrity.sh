@@ -11,6 +11,7 @@ export PYTHONPATH="/workspace/Hybrid-tts/validation/compat${PYTHONPATH:+:${PYTHO
 OUTPUT_DIR=/workspace/nano-flash-artifacts/g3/moss-data-integrity
 MODEL=/workspace/.hf_home/hub/models--OpenMOSS-Team--MOSS-TTS-Nano/snapshots/44502f80dbf9743528fa921cc544d662c685ebec
 CODEC=/workspace/.hf_home/hub/models--OpenMOSS-Team--MOSS-Audio-Tokenizer-Nano/snapshots/6aa02b01e445cc585582cf0ba480bc3ea6c8dd68
+TEXT_TOKENIZER=/workspace/.hf_home/modules/transformers_modules/OpenMOSS_hyphen_Team/MOSS_hyphen_TTS_hyphen_Nano/44502f80dbf9743528fa921cc544d662c685ebec/.cache/huggingface/models--OpenMOSS-Team--MOSS-TTS-Nano/snapshots/44502f80dbf9743528fa921cc544d662c685ebec
 mkdir -p "$OUTPUT_DIR"
 
 python validation/build_moss_overfit_manifest.py \
@@ -27,5 +28,6 @@ python /workspace/external/MOSS-TTS-Nano/finetuning/prepare_data.py \
 python validation/moss_data_integrity.py \
   --moss-repo /workspace/external/MOSS-TTS-Nano \
   --model-snapshot "$MODEL" \
+  --text-tokenizer-snapshot "$TEXT_TOKENIZER" \
   --prepared-jsonl "$OUTPUT_DIR/prepared.jsonl" \
   --output "$OUTPUT_DIR/integrity.json"
