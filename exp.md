@@ -81,7 +81,7 @@ Follow-up:
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PASS | Measured stack has no feasible case; optimized AR 0.75/block 0.20 RTF passes all text-sufficient cases |
 | EXP-060 | G6 | Renderer target caching | PASS | Tokens, conditioning, and RNG reproduce ten waveforms exactly at renderer RTF 0.038 |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PASS | One step is RTF 0.024 but diverges strongly; retain already-fast two-step default |
-| EXP-069 | G7 | FlashInfer Blackwell compatibility | RUNNING | Installing locked backend while preserving Torch/CUDA ABI |
+| EXP-069 | G7 | FlashInfer Blackwell compatibility | PASS | Locked backend preserves ABI and executes fused CUDA kernel on Blackwell |
 | EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
 | EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
 | EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
@@ -504,3 +504,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** One-step execution works and is very fast, but objective deviation is too large for an automatic quality endorsement. The released two-step renderer already consumes far below the total RTF budget, so retain two steps as the lean default. Consider one step only after blinded listening or a perceptual metric demonstrates acceptable quality; renderer optimization is not the critical bottleneck.
 
 **Follow-up:** G6 is complete. Move to G7 block acceleration: first test whether FlashInfer can be installed and run on Blackwell, then compare Torch/CUDA-graph/block sizes. Only train a frozen block head if optimized pretrained inference remains short of the required RTF.
+
+### EXP-069 — FlashInfer Blackwell compatibility
+
+- **Gate:** G7
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Determine whether the official Flash optimized backend can be installed on the RTX 5060 Ti without breaking the already validated Torch/CUDA ABI, and execute a real fused CUDA kernel before trusting benchmark claims.
+
+**Configuration:** Existing isolated Chatterbox-Flash Python 3.12 environment; repository lockfile version `flashinfer-python==0.6.11.post3`; explicitly preserved `torch==2.7.1+cu128`; FlashInfer cache rooted under `/workspace`; BF16 256x512 fused add+RMSNorm probe.
+
+**Acceptance criteria:** Torch and CUDA versions unchanged; compute capability 12.0 visible; exact FlashInfer version installed; repository engine detects backend; fused CUDA output finite.
+
+**Results:** PASS. All six checks passed. FlashInfer 0.6.11.post3 installed while retaining Torch 2.7.1+cu128 and CUDA 12.8. The repository engine reported availability, Blackwell compute capability 12.0 was visible, and a real fused BF16 add+RMSNorm kernel returned finite output. Its cold first invocation, including compilation/loading overhead, took `0.9638 s`. Setup JSON SHA-256 is `0a8f1016ab5ea6518f90c493b8734d47f966d0cb0dfc499b16d906e07b7a317e`. The Flash environment occupies 7.7 GiB and 279 GiB remains free.
+
+**Decision:** FlashInfer is technically viable on this machine and may now be benchmarked. Cold JIT latency must be excluded only after explicit warmup; serving images need precompiled/warmed kernels or cold-start reporting. No block-head training is justified until optimized pretrained inference is measured.
+
+**Follow-up:** Benchmark Torch versus FlashInfer with and without CUDA graphs and across block sizes using identical tokens/audio/seed. Record cold warmup separately and test numerical/output consistency.
