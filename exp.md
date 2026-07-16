@@ -66,7 +66,7 @@ Follow-up:
 | EXP-002 | G0 | GPU/CUDA/PyTorch capability validation | PASS | Blackwell-capable cu130 PyTorch; FP16/BF16 CUDA operations valid |
 | EXP-003 | G0 | Disk, network, checkpoint, and recovery validation | PASS | 300 GiB available; atomic checkpoints and detached supervisor verified |
 | EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PASS | Deterministic CUDA inference produced valid 7.68 s English audio |
-| EXP-011 | G1 | MOSS latency and resource profile | PLANNED | — |
+| EXP-011 | G1 | MOSS latency and resource profile | PASS | Warm TTFA passes target; RTF 1.13 exposes semantic-generation bottleneck |
 | EXP-012 | G1 | Chatterbox installation and smoke inference | PLANNED | — |
 | EXP-013 | G1 | Chatterbox latency and resource profile | PLANNED | — |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PLANNED | — |
@@ -191,3 +191,25 @@ Follow-up:
 **Decision:** PASS. MOSS is viable as the pretrained AR baseline on this GPU. Cold elapsed time is not an inference throughput result and must not be used as RTF; warm stage-level profiling follows in EXP-011.
 
 **Follow-up:** Pin the exact upstream/model revisions in the profiling harness, run warm repeated inference in one loaded process, and measure semantic generation, acoustic decode, RTF, TTFA proxy, VRAM, and determinism.
+
+### EXP-011 — MOSS latency and resource profile
+
+- **Gate:** G1
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+- **Harness commit:** `2aa8307`
+
+**Goal:** Measure the real warm startup latency, sustained throughput, buffering behavior, stage costs, determinism, and VRAM of the pretrained MOSS AR baseline on the target 16 GB GPU without mixing model-load time into inference latency.
+
+**Configuration:** Upstream commit `11619374849c649486584e3b10ed55b176a924ee`; fully offline local snapshots `44502f…685ebec` for the 117,311,232-parameter TTS model and nested text tokenizer, and `6aa02b…8dd68` for the 21,969,664-parameter audio tokenizer; BF16 TTS weights; SDPA attention; greedy decoding; audio repetition penalty `1.2`; KV cache enabled; seed `20260716`; concurrency 1; English voice clone from `en_6.wav`; one 32-frame warm-up, three uninstrumented measured requests, and one synchronization-instrumented stage request in the same process. The measured cap was 160 frames, but each request ended naturally at 65 frames.
+
+**Acceptance criteria:** At least three valid warm requests plus one valid instrumented request; finite non-silent audio and final result events; identical greedy semantic/audio-token hashes across repeats; less than 14.5 GiB peak allocated VRAM; positive TTFA and RTF measurements; stage timers account for the instrumented request without double-counting. Nano Flash's draft TTFA/RTF targets are comparisons, not this profiling experiment's pass condition.
+
+**Commands/artifacts:** `validation/moss_profile.py`; `validation/run_moss_profile.sh`; `validation/supervisor/moss-profile.conf`; remote raw evidence `/workspace/nano-flash-artifacts/g1/moss-profile/`; summary `/workspace/nano-flash-artifacts/g1/moss-profile/moss-profile.json` with SHA-256 `e3bb7ff8…27288a6`.
+
+**Results:** All automated checks passed. The three warm requests produced identical 65-frame token tensors (SHA-256 `57df80d2…5f24fa`) and byte-identical 5.200 s, 48 kHz stereo WAV files (SHA-256 `35534e23…1e2f9c`); none hit the frame cap. Warm TTFA was `0.1371 s` p50 and `0.1861 s` p95, meeting the draft `<0.150 s` p50 and `<0.250 s` p95 sanity targets in this three-run sample. Sustained RTF was `1.1256` p50 and `1.3186` p95, approximately 5.6 times slower than the `<0.20` target and slower than realtime. Individual maximum inter-audio-event gaps were `92–128 ms` for `80 ms` audio frames, and reported buffer lead became negative on every run (`-0.40` to `-1.54 s`), proving playback underruns rather than merely predicting them from aggregate RTF. The instrumented run attributed `4.1194 s` of `5.7134 s` measured stage time to semantic AR generation (72.1%), `1.5606 s` to codec decode (27.3%), and `0.0334 s` to reference encoding (0.6%); orchestration and WAV I/O added about `0.0625 s`. Peak allocated VRAM was only `0.4723 GiB`, leaving ample memory for larger batches, adapters, or an auxiliary continuation head. Model and component loading took `1.3343 s` and `0.2622 s`, respectively, and were excluded from warm metrics. The three-sample p95 is sanity evidence, not a production percentile claim.
+
+**Decision:** PASS as a reproducible G1 profile. MOSS already demonstrates a viable low-latency AR startup path on the RTX 5060 Ti, so the architecture does not need a new startup model merely to reach first audio. It is not viable as the steady-state path on this GPU: semantic frame generation dominates and the existing codec is secondary. This directly supports the proposed hybrid split—retain AR for startup/fallback and target semantic continuation throughput with block generation—while showing that renderer-only optimization cannot close the full RTF gap.
+
+**Follow-up:** Profile the official Chatterbox baseline under the same timing contract, then use both baselines to set G2/G5 simulator arrival rates and the minimum block-continuation speedup required for realtime operation.
