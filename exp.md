@@ -75,7 +75,7 @@ Follow-up:
 | EXP-030 | G3 | Token/data pipeline integrity | PASS | Official codec and SFT packer produce deterministic valid 100-record corpus |
 | EXP-031 | G3 | 100-sample deliberate overfit | PASS | Loss fell 90.4% in 40 steps; finite reloadable checkpoint produced |
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PASS | Restored step exactly matches uninterrupted loss, model, and optimizer hashes |
-| EXP-040 | G4 | Lean English AR adaptation | RUNNING | Acquiring deterministic 100-train/20-held-out LibriSpeech subset |
+| EXP-040 | G4 | Lean English AR adaptation | PASS | Stable 100-step adaptation improves disjoint-speaker held-out loss by 0.424% |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | PLANNED | — |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PLANNED | — |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PLANNED | — |
@@ -383,3 +383,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Exact recovery is feasible, but only when the harness saves optimizer, scheduler, and RNG state in addition to upstream model-only checkpoints. All longer unattended training gates must use this full-state atomic contract. Keep only last, best, and one recovery state to control disk use.
 
 **Follow-up:** G3 is complete. Begin G4 lean English adaptation/generalization with a small real multi-utterance corpus and held-out evaluation; do not interpret the repeated-sample overfit checkpoint as a candidate model.
+
+### EXP-040 — Lean English AR adaptation
+
+- **Gate:** G4
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Determine whether a cost-effective, short English adaptation of the pretrained AR semantic model trains stably on real varied speech and improves rather than degrades loss on unseen speakers.
+
+**Configuration:** Deterministic LibriSpeech `clean` subset selected through the Hugging Face Dataset Viewer API: 100 `train.100` utterances distributed across offsets 0/5000/10000/15000/20000 and 20 validation utterances across offsets 0/500/1000/1500. Training contains 21.45 minutes from five speakers; held-out contains 2.44 minutes from four disjoint speakers. Dataset license is CC BY 4.0. Full pretrained MOSS model; BF16; 100 steps; batch 1; maximum length 512; AdamW `1e-5`, weight decay 0.01, five warmup steps, linear decay, gradient cap 1, seed `20260716`.
+
+**Acceptance criteria:** Exactly 100/20 finite 16 kHz English clips with unique IDs and disjoint speakers; deterministic 16-codebook encoding; 100 finite optimizer steps; late training loss below early training loss; finite held-out evaluation before and after; adapted held-out mean loss below baseline; reloadable checkpoint.
+
+**Results:** PASS, with a small effect size. All 120 audio files passed structural checks. The train and validation token manifests contain respectively 100 and 20 records, with frame ranges 21–208 and 24–238. Early ten-step training loss averaged `5.10049`; late ten-step loss averaged `5.06226`. Mean loss on four held-out speakers improved from `5.0763384` to `5.0548172`, a ratio of `0.9957605` or 0.424% improvement. The 285,015,275-byte checkpoint has SHA-256 `9f9838e06d7845b63d17ea65250cbeca50e75b1586d2e03465dd8fd3853e12bb`. Provenance, encoding, and adaptation summary SHA-256 values are respectively `a79309635ffd8febc0e863d2b58f39488f3b1e0f1e1c68f7833f3a01b3d20e08`, `ef1eb6cdbb3c72bf2b50029a171f05aa00d75cbda746c315c12189264a26d681`, and `519646e6bf98f3e958048d3e0bd91706b6e362d6d36afd4c510d98fc555e527e`. G4 artifacts occupy approximately 572 MiB; 280 GiB remains free.
+
+**Decision:** Real English adaptation is technically feasible and stable on the target GPU, but 100 steps/21 minutes yields only marginal held-out improvement and should not be presented as a meaningful quality gain. The result supports reuse and low-cost adaptation rather than training from scratch. Candidate selection must depend on generated-speech intelligibility and failure analysis, not teacher-forced loss alone.
+
+**Follow-up:** EXP-041 will synthesize a held-out English challenge set with baseline and adapted checkpoints, transcribe outputs using a frozen ASR evaluator, compare WER/CER and structural failures, and retain samples for manual listening.
