@@ -75,7 +75,7 @@ Follow-up:
 | EXP-030 | G3 | Token/data pipeline integrity | PASS | Official codec and SFT packer produce deterministic valid 100-record corpus |
 | EXP-031 | G3 | 100-sample deliberate overfit | PASS | Loss fell 90.4% in 40 steps; finite reloadable checkpoint produced |
 | EXP-032 | G3 | Checkpoint resume and reproducibility | PASS | Restored step exactly matches uninterrupted loss, model, and optimizer hashes |
-| EXP-040 | G4 | Lean English AR adaptation | PLANNED | — |
+| EXP-040 | G4 | Lean English AR adaptation | RUNNING | Acquiring deterministic 100-train/20-held-out LibriSpeech subset |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | PLANNED | — |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PLANNED | — |
 | EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PLANNED | — |
