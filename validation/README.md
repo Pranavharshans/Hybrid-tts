@@ -24,3 +24,7 @@ The command verifies CUDA execution, real filesystem capacity, sequential tempor
 
 `g0_supervisor_probe.sh` is a five-second one-shot workload used to prove that the instance supervisor can own a validation process independently of the initiating SSH connection and atomically publish its completion record.
 The matching `supervisor/nano-flash-probe.conf` is copied into the instance supervisor configuration only for EXP-003.
+
+## G1 MOSS smoke inference
+
+`moss_smoke.py` runs a deterministic English voice-clone request on CUDA, validates the generated WAV structurally, and records cold elapsed time plus peak allocated VRAM. `run_moss_smoke.sh` and `supervisor/moss-smoke.conf` make the potentially download-heavy first run independently supervised.
