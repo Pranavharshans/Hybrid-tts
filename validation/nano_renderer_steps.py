@@ -56,7 +56,9 @@ def main() -> int:
         torch.cuda.set_rng_state_all(cached["cuda_rng"])
         torch.cuda.synchronize()
         started = time.perf_counter()
-        two_step, _ = model.s3gen.inference(tokens, ref_dict, n_cfm_timesteps=2)
+        two_step, _ = model.s3gen.inference(
+            speech_tokens=tokens, ref_dict=ref_dict, n_cfm_timesteps=2
+        )
         torch.cuda.synchronize()
         two_seconds = time.perf_counter() - started
         two_step = two_step.detach().cpu().float()
@@ -65,7 +67,9 @@ def main() -> int:
         torch.cuda.set_rng_state_all(cached["cuda_rng"])
         torch.cuda.synchronize()
         started = time.perf_counter()
-        one_step, _ = model.s3gen.inference(tokens, ref_dict, n_cfm_timesteps=1)
+        one_step, _ = model.s3gen.inference(
+            speech_tokens=tokens, ref_dict=ref_dict, n_cfm_timesteps=1
+        )
         torch.cuda.synchronize()
         one_seconds = time.perf_counter() - started
         one_step = one_step.detach().cpu().float()
