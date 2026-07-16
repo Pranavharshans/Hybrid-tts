@@ -78,7 +78,7 @@ Follow-up:
 | EXP-040 | G4 | Lean English AR adaptation | PASS | Stable 100-step adaptation improves disjoint-speaker held-out loss by 0.424% |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | FAIL | Adapted WER regresses 19% to 32% through clause/utterance truncation |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PASS | Seven tests validate lossless packets, routing, buffer safety, fallback, and cancellation |
-| EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | RUNNING | Replaying 324 measured/optimized arrival, buffer, block, and cancel scenarios |
+| EXP-051 | G5 | TTFA/RTF/gap/cancellation stress matrix | PASS | Measured stack has no feasible case; optimized AR 0.75/block 0.20 RTF passes all text-sufficient cases |
 | EXP-060 | G6 | Renderer target caching | PLANNED | — |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PLANNED | — |
 | EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
@@ -442,3 +442,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** The serving-state contract is implementable independently of model internals. Speculative text is confined to AR startup; stable text and adequate playback headroom are mandatory for block work. This protects already released audio from text revision and makes cancellation behavior explicit.
 
 **Follow-up:** EXP-051 will drive this state machine with measured MOSS AR and Flash block timing over arrival rates, block sizes, switch thresholds, cancellations, and component-speed counterfactuals to find the feasible operating region.
+
+### EXP-051 — TTFA/RTF/gap/cancellation stress matrix
+
+- **Gate:** G5
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Determine whether the measured components can simultaneously satisfy startup, continuous playback, text-arrival, switching, and cancellation constraints, and quantify the component-speed region required for feasibility.
+
+**Configuration:** Discrete 5 ms clock; 6 s target utterance; 15 arriving characters per second of spoken audio; seven-character stability lookahead; arrival rates 5/10/20/40/80/1000 chars/s; block sizes 160/320/640 ms; switch buffers 80/160/240 ms; cancellation at none/1.0/2.5 s. Measured profile uses MOSS first packet 137.1 ms, AR RTF 1.1256, and Flash Torch block RTF 0.5918. Required-optimized counterfactual uses 100 ms first packet, AR RTF 0.75, and block RTF 0.20. The full Cartesian matrix contains 324 scenarios.
+
+**Acceptance criteria:** Complete matrix; nonnegative buffers; all cancellations within one 80 ms packet; no measured scenario falsely reported feasible under adequate text; at least one optimized feasible region; slow-input starvation identified separately from model underrun.
+
+**Results:** PASS as an architectural stress test, with the measured stack failing the product envelope. All six harness checks passed. Measured components produced zero product-passing scenarios, zero block transitions, and a best underrun ratio of `0.1561` even among 36 text-sufficient cases; minimum TTFA was 145 ms only with essentially complete text availability. The slower-than-real-time AR path cannot accumulate the 80–240 ms buffer needed to hand off, creating a switching deadlock. The required-optimized profile passed all 36 text-sufficient cases and 45/54 uncancelled scenarios overall, reached block mode in 27 scenarios, achieved zero underrun in its best cases, and minimum TTFA 105 ms. Every cancellation completed within 80 ms. Rates below the 15 chars/s content-consumption rate were correctly classified as input-starved rather than model failures. Raw matrix SHA-256 is `00d4b2f72b4108c333e377dd7ebc0e97bb0ee3af02c057c50094c122236dc0a8` and occupies approximately 256 KiB.
+
+**Decision:** The hybrid scheduler is viable, but the currently measured MOSS/Flash combination is not. To avoid handoff deadlock, AR continuation must be at least modestly faster than real time (validated counterfactual RTF 0.75) while block generation approaches RTF 0.20. Alternatively, block work must run concurrently or start from a much smaller incremental unit, neither of which the released APIs currently expose. TTFA cannot be guaranteed when upstream text arrives below speech consumption rate.
+
+**Follow-up:** G5 is complete. In G6, validate that pretrained Nano acoustic targets can be cached and that its one-step renderer is already sufficient. In G7, test FlashInfer/CUDA-graph acceleration and block-size behavior before deciding whether a frozen block head needs lean training.
