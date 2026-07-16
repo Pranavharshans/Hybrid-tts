@@ -30,3 +30,9 @@ The matching `supervisor/nano-flash-probe.conf` is copied into the instance supe
 `moss_smoke.py` runs a deterministic English voice-clone request on CUDA, validates the generated WAV structurally, and records cold elapsed time plus peak allocated VRAM. `run_moss_smoke.sh` and `supervisor/moss-smoke.conf` make the potentially download-heavy first run independently supervised.
 
 The current Blackwell image ships PyTorch 2.12 without a matching torchaudio wheel. MOSS requires only audio load, save, and resampling, so `compat/torchaudio` provides that narrow API with SoundFile and SciPy while preserving the validated CUDA framework instead of installing an ABI-mismatched torchaudio build.
+
+## G1 MOSS warm profile
+
+`moss_profile.py` loads exact local Hugging Face model, nested text-tokenizer, and audio-tokenizer snapshots once in offline mode, primes the model and codec, then runs three uninstrumented deterministic requests for warm TTFA, RTF, chunk timing, VRAM, and output repeatability. A fourth synchronized run separately attributes wall time to prompt encoding, semantic generation, codec decoding, and orchestration/I/O. Product-target comparisons are reported as baseline facts; they are not part of the profiling experiment's pass condition.
+
+`run_moss_profile.sh` contains the immutable snapshot paths used on the validation instance. `supervisor/moss-profile.conf` keeps the run alive across SSH disconnects.
