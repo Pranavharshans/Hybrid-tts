@@ -28,3 +28,5 @@ The matching `supervisor/nano-flash-probe.conf` is copied into the instance supe
 ## G1 MOSS smoke inference
 
 `moss_smoke.py` runs a deterministic English voice-clone request on CUDA, validates the generated WAV structurally, and records cold elapsed time plus peak allocated VRAM. `run_moss_smoke.sh` and `supervisor/moss-smoke.conf` make the potentially download-heavy first run independently supervised.
+
+The current Blackwell image ships PyTorch 2.12 without a matching torchaudio wheel. MOSS requires only audio load, save, and resampling, so `compat/torchaudio` provides that narrow API with SoundFile and SciPy while preserving the validated CUDA framework instead of installing an ABI-mismatched torchaudio build.
