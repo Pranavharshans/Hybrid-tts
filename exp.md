@@ -84,8 +84,8 @@ Follow-up:
 | EXP-069 | G7 | FlashInfer Blackwell compatibility | PASS | Locked backend preserves ABI and executes fused CUDA kernel on Blackwell |
 | EXP-070 | G7 | Optimized pretrained block benchmark and training decision | PASS | FlashInfer graph block-32 reaches RTF 0.101; frozen-head training deferred |
 | EXP-071 | G7 | Torch versus optimized block throughput/quality comparison | FAIL | Block-32 improves WER to 9% at 0.133 RTF; block-16 narrowly misses the strict 0.20 RTF criterion |
-| EXP-080 | G8 | Integrated AR/block switching | RUNNING | Auditing real pretrained semantic-state compatibility before any handoff claim |
-| EXP-081 | G8 | Final adversarial streaming matrix | PLANNED | — |
+| EXP-080 | G8 | Integrated AR/block switching | FAIL | Pretrained AR and block checkpoints have incompatible semantic/state interfaces |
+| EXP-081 | G8 | Final adversarial streaming matrix | RUNNING | Testing measured block-32 with real and required AR timing across 1,536 cases |
 
 ## Records
 
@@ -561,3 +561,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** Do not weaken the acceptance contract or label the three-way experiment a pass. Retire graph block-16 from the preferred path because it lacks margin on this GPU. Promote FlashInfer CUDA-graph block-32 to G8: it is approximately `4.77x` faster than the Torch challenge baseline while improving frozen-ASR WER by five absolute points. Backend/block-size outputs are not numerically identical, so retained audio still requires manual listening before a production quality claim.
 
 **Follow-up:** Integrate the qualified block-32 profile with the scheduler and retained pretrained AR startup path in EXP-080. Measure handoff continuity, buffer behavior, cancellation, and fallback; preserve the distinction between an executable runtime and any counterfactual component used where released APIs cannot expose incremental generation.
+
+### EXP-080 — Integrated AR/block switching
+
+- **Gate:** G8
+- **Status:** FAIL
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Determine whether the retained pretrained MOSS AR startup and qualified FlashInfer block-32 continuation can exchange a real semantic continuation state, which is a prerequisite for measuring an honest mixed-mode boundary.
+
+**Configuration:** Static checkpoint/config introspection pinned to the exact revisions used in G1–G7, plus a source-level search for an exposed continuation-state interface. Waveform concatenation was explicitly excluded because it cannot validate shared semantic history, KV/cache state, speaker conditioning, or boundary continuity.
+
+**Acceptance criteria:** Matching backbone hidden width; matching semantic token representation; matching native audio rate; and an exposed Flash continuation-state entry point. All four are necessary for direct reuse as a shared-state hybrid.
+
+**Results:** FAIL. MOSS uses a 768-wide model and 16 parallel 1,024-entry audio codebooks at a native 48 kHz tokenizer rate. Flash uses a 1,024-wide model with speech embedding shape `[8195, 1024]`, speech-head shape `[8194, 1024]`, and 24 kHz rendered audio. Flash exposes no `continuation_state` interface. Therefore all four compatibility checks failed. The pinned Flash checkpoint SHA-256 is `b693f551d0b8b9ea2377509c0c9dc5a41f7a0f45aadeae3fd05aa6d9c4ecaa4d`; MOSS config SHA-256 is `ba36b08c80d4ae0805a2bab32b6ac90ec0d1815d01d3854ba42811db1d5bde99`; audit JSON SHA-256 is `8c8853d0619dc63446f192f059d60499a9880c2de484359293e53338e26af590`.
+
+**Decision:** The already-trained components validate subsystems but cannot be assembled into the PRD's proposed shared-backbone hybrid. A waveform crossfade demo would conceal this interface failure and is not accepted as integration evidence. G8 requires an original common semantic representation/backbone plus separately trained AR and block heads, or a continuation head trained directly on one retained model's states.
+
+**Follow-up:** EXP-081 will still stress the scheduler with the measured block-32 RTF and both measured and required AR profiles. This separates the software/runtime feasible region from the checkpoint-compatibility blocker and produces the final architecture verdict evidence.
