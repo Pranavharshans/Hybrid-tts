@@ -74,7 +74,7 @@ Follow-up:
 | EXP-021 | G2 | Partial-text stability across arrival rates | PASS | Stable at all rates; two-word safety alone cannot meet the TTFA target |
 | EXP-030 | G3 | Token/data pipeline integrity | PASS | Official codec and SFT packer produce deterministic valid 100-record corpus |
 | EXP-031 | G3 | 100-sample deliberate overfit | PASS | Loss fell 90.4% in 40 steps; finite reloadable checkpoint produced |
-| EXP-032 | G3 | Checkpoint resume and reproducibility | RUNNING | Comparing uninterrupted and restored step 2 from full state |
+| EXP-032 | G3 | Checkpoint resume and reproducibility | PASS | Restored step exactly matches uninterrupted loss, model, and optimizer hashes |
 | EXP-040 | G4 | Lean English AR adaptation | PLANNED | — |
 | EXP-041 | G4 | Held-out intelligibility and failure analysis | PLANNED | — |
 | EXP-050 | G5 | Streaming scheduler and packetizer | PLANNED | — |
@@ -362,3 +362,24 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** The pretrained MOSS training stack is learnable and stable on the RTX 5060 Ti with substantial memory headroom, so training from scratch is unnecessary for the lean validation. This experiment demonstrates optimization/plumbing only; because every record is the same utterance, it provides zero generalization or production-quality evidence.
 
 **Follow-up:** EXP-032 will test checkpoint reload and continuation. The upstream trainer's checkpoint format currently saves model/config/tokenizer but not optimizer, scheduler, or RNG state; exact interrupted-run equivalence must therefore be treated as unproven unless the harness adds stateful recovery.
+
+### EXP-032 — Checkpoint resume and reproducibility
+
+- **Gate:** G3
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Demonstrate that unattended single-GPU training can resume after interruption without changing the next optimization result, including model, optimizer, scheduler, and random-number state.
+
+**Configuration:** Start from the EXP-031 overfit checkpoint; one deterministic English batch; BF16 model; AdamW at `1e-5`; constant scheduler; SDPA math backend; seed `20260716`. Execute step 1, atomically save full recovery state, execute step 2 uninterrupted, destroy the live objects, reload fresh model/optimizer/scheduler objects and RNG state, then execute the same step 2 and hash all resulting tensor state.
+
+**Acceptance criteria:** All losses finite; uninterrupted and resumed step-2 losses exactly equal; post-step model and optimizer state hashes exactly equal; state file atomically published below 2 GiB; peak VRAM below 14.5 GiB.
+
+**Attempts 1–2:** Both training paths executed, but evidence hashing first failed on NumPy's lack of BF16 support and then on byte-viewing scalar optimizer tensors. Commits `cee84c3` and `0cc70b5` changed only raw-byte hashing. No partial recovery result was accepted; the complete comparison was rerun after each correction.
+
+**Results:** PASS. Step-1 loss was `0.5441401601`. Uninterrupted and restored step-2 loss were exactly `0.5428910255`. Both paths produced model SHA-256 `43b87cabf645bcbb6f71e267092b8a3264d09686e1460d573356f6801765190e` and optimizer SHA-256 `11de9af96351c6312c197a95a90f26c0a8e620667615056c63c9ae8a0a26f6d2`. The atomic full-state checkpoint is 754,421,427 bytes with SHA-256 `7c1da1b803786ff7729757cacbbe6accdb2623a91b6a62e89491880394d626ef`. Peak allocated VRAM was 1.7264 GiB uninterrupted and 1.7277 GiB restored. Summary JSON SHA-256 is `46da1c680c103ecc2e5ed6b94f97988a76ae712521ef2db10eb35ec4b29ff0f2`. Disk remains safe with 280 GiB free.
+
+**Decision:** Exact recovery is feasible, but only when the harness saves optimizer, scheduler, and RNG state in addition to upstream model-only checkpoints. All longer unattended training gates must use this full-state atomic contract. Keep only last, best, and one recovery state to control disk use.
+
+**Follow-up:** G3 is complete. Begin G4 lean English adaptation/generalization with a small real multi-utterance corpus and held-out evaluation; do not interpret the repeated-sample overfit checkpoint as a candidate model.
