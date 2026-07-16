@@ -82,7 +82,7 @@ Follow-up:
 | EXP-060 | G6 | Renderer target caching | PASS | Tokens, conditioning, and RNG reproduce ten waveforms exactly at renderer RTF 0.038 |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PASS | One step is RTF 0.024 but diverges strongly; retain already-fast two-step default |
 | EXP-069 | G7 | FlashInfer Blackwell compatibility | PASS | Locked backend preserves ABI and executes fused CUDA kernel on Blackwell |
-| EXP-070 | G7 | Optimized pretrained block benchmark and training decision | RUNNING | Comparing Torch and FlashInfer eager/graph block sizes |
+| EXP-070 | G7 | Optimized pretrained block benchmark and training decision | PASS | FlashInfer graph block-32 reaches RTF 0.101; frozen-head training deferred |
 | EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
 | EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
 | EXP-081 | G8 | Final adversarial streaming matrix | PLANNED | — |
@@ -523,3 +523,22 @@ The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flas
 **Decision:** FlashInfer is technically viable on this machine and may now be benchmarked. Cold JIT latency must be excluded only after explicit warmup; serving images need precompiled/warmed kernels or cold-start reporting. No block-head training is justified until optimized pretrained inference is measured.
 
 **Follow-up:** Benchmark Torch versus FlashInfer with and without CUDA graphs and across block sizes using identical tokens/audio/seed. Record cold warmup separately and test numerical/output consistency.
+
+### EXP-070 — Optimized pretrained block benchmark and training decision
+
+- **Gate:** G7
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Determine whether optimized pretrained Flash inference already satisfies the block RTF target, and avoid unnecessary frozen-head training if kernel/backend changes are sufficient.
+
+**Configuration:** Exact Flash checkpoint; BF16; same English prompt/text/seed; 10 diffusion steps; two-step meanflow renderer; concurrency 1. Five isolated configurations with cold warmup plus three timed repeats: Torch SDPA block-16, FlashInfer eager block-16, and FlashInfer CUDA graphs with blocks 8/16/32.
+
+**Acceptance criteria:** Torch reference and at least one FlashInfer configuration pass; finite non-silent output; deterministic tokens within each configuration; peak VRAM below 14.5 GiB; best FlashInfer faster than Torch. The `<0.20` RTF target is reported separately rather than required for harness validity.
+
+**Results:** PASS. All five configurations completed deterministically. Torch block-16 RTF was `0.60684` with semantic RTF `0.57631`. FlashInfer eager block-16 reached `0.38216`. CUDA-graph results were block-8 `0.21676`, block-16 `0.15043`, and block-32 `0.10074`; best full-pipeline speedup over Torch was `6.0237x`. Block-32 semantic RTF was `0.06719`; renderer/other cost accounted for the remaining approximately 0.03355. Peak VRAM was 7.30 GiB, leaving substantial 16 GiB headroom. Output was byte-deterministic within each configuration, but tokens differed across backends/block sizes (118–126 tokens), so numerical equivalence cannot be assumed. Summary SHA-256 is `658f310ff82efecdea909432ff7679a108d4c67d986995ef5843ea604e4f8b56`.
+
+**Decision:** Optimized pretrained block inference already exceeds the required RTF by nearly 2x, so frozen-backbone block-head training is not justified in the lean validation. Select FlashInfer graph block-16 as the conservative speed candidate and block-32 as the maximum-throughput candidate pending quality/intelligibility comparison. Kernel warmup and graph capture are mandatory deployment steps.
+
+**Follow-up:** EXP-071 will synthesize the English challenge suite with Torch block-16, FlashInfer graph block-16, and block-32, compare ASR intelligibility/duration/failures, and retain audio for listening before choosing the block size.
