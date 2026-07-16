@@ -82,7 +82,7 @@ Follow-up:
 | EXP-060 | G6 | Renderer target caching | PASS | Tokens, conditioning, and RNG reproduce ten waveforms exactly at renderer RTF 0.038 |
 | EXP-061 | G6 | One-step/two-step renderer feasibility | PASS | One step is RTF 0.024 but diverges strongly; retain already-fast two-step default |
 | EXP-069 | G7 | FlashInfer Blackwell compatibility | PASS | Locked backend preserves ABI and executes fused CUDA kernel on Blackwell |
-| EXP-070 | G7 | Frozen-backbone block head training | PLANNED | — |
+| EXP-070 | G7 | Optimized pretrained block benchmark and training decision | RUNNING | Comparing Torch and FlashInfer eager/graph block sizes |
 | EXP-071 | G7 | AR versus block throughput/quality comparison | PLANNED | — |
 | EXP-080 | G8 | Integrated AR/block switching | PLANNED | — |
 | EXP-081 | G8 | Final adversarial streaming matrix | PLANNED | — |
