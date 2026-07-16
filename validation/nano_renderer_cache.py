@@ -56,6 +56,8 @@ def main() -> int:
 
         def wrapper(*wrapper_args: Any, **wrapper_kwargs: Any) -> Any:
             tokens = wrapper_kwargs.get("speech_tokens", wrapper_args[0] if wrapper_args else None)
+            captured["torch_rng"] = torch.get_rng_state().clone()
+            captured["cuda_rng"] = torch.cuda.get_rng_state_all()
             result = original(*wrapper_args, **wrapper_kwargs)
             captured["tokens"] = tokens.detach().cpu().clone()
             captured["waveform"] = result[0].detach().cpu().clone()
@@ -72,8 +74,8 @@ def main() -> int:
         atomic_torch(cache_path, captured)
 
         cached = torch.load(cache_path, map_location="cpu", weights_only=True)
-        torch.manual_seed(SEED)
-        torch.cuda.manual_seed_all(SEED)
+        torch.set_rng_state(cached["torch_rng"])
+        torch.cuda.set_rng_state_all(cached["cuda_rng"])
         torch.cuda.synchronize()
         started = time.perf_counter()
         rerendered, _ = model.s3gen.inference(
