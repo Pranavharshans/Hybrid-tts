@@ -63,7 +63,7 @@ Follow-up:
 | --- | --- | --- | --- | --- |
 | EXP-000 | G0 | Local repository and ledger initialization | PASS | Repository clean; ledger established |
 | EXP-001 | G0 | Remote GPU discovery and SSH connectivity | PASS | Running instance; noninteractive SSH authenticated |
-| EXP-002 | G0 | GPU/CUDA/PyTorch capability validation | PLANNED | — |
+| EXP-002 | G0 | GPU/CUDA/PyTorch capability validation | PASS | Blackwell-capable cu130 PyTorch; FP16/BF16 CUDA operations valid |
 | EXP-003 | G0 | Disk, network, checkpoint, and recovery validation | PLANNED | — |
 | EXP-010 | G1 | MOSS-TTS-Nano installation and smoke inference | PLANNED | — |
 | EXP-011 | G1 | MOSS latency and resource profile | PLANNED | — |
@@ -128,3 +128,24 @@ Follow-up:
 **Decision:** PASS. The instance can support unattended orchestration from this workspace.
 
 **Follow-up:** Run GPU, CUDA, PyTorch, memory, storage, process-persistence, and checkpoint-integrity validation in EXP-002/003.
+
+### EXP-002 — GPU/CUDA/PyTorch capability validation
+
+- **Gate:** G0
+- **Status:** PASS
+- **Started:** 2026-07-16
+- **Finished:** 2026-07-16
+
+**Goal:** Prove that the installed framework stack can execute real CUDA kernels on the Blackwell GPU in both intended mixed-precision formats.
+
+**Configuration:** RTX 5060 Ti, 16,311 MiB reported VRAM (15.478 GiB through PyTorch), driver `595.71.05`, compute capability `12.0`, PyTorch `2.12.0+cu130`, bundled CUDA `13.0` runtime.
+
+**Acceptance criteria:** CUDA device available; framework wheel targets a CUDA version new enough for Blackwell; FP16 and BF16 matrix multiplication complete; outputs contain only finite values; core CUDA libraries are present.
+
+**Commands/artifacts:** `nvidia-smi`; `vast-capabilities metrics,packages`; isolated PyTorch FP16 and BF16 CUDA matrix multiplications.
+
+**Results:** The live manifest reported the complete required CUDA component set, a CUDA 13.0 PyTorch wheel, driver support through CUDA 13.2, and Blackwell compute capability 12.0. A 2048×2048 FP16 matmul completed in 0.1684 s and a 1024×1024 BF16 matmul completed in 0.1398 s; both outputs were finite. PyTorch reports native BF16 support. The first inline probe had a shell-quoting syntax error and performed no GPU assertion; the corrected isolated probes passed.
+
+**Decision:** PASS. The installed framework is architecture-compatible and suitable for lean mixed-precision training.
+
+**Follow-up:** Validate disk safety, persistent job supervision, checkpoint integrity, and off-instance recovery in EXP-003.
