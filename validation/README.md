@@ -44,3 +44,5 @@ The current Blackwell image ships PyTorch 2.12 without a matching torchaudio whe
 The first reproducible backend is pure Torch SDPA. FlashInfer remains a later optimization experiment because its compiled extension adds an independent ABI and GPU-architecture risk.
 
 `setup_chatterbox_nano.sh` separately recreates the official Nano demo Space's PyTorch 2.11 and Transformers 4.46 framework family with CUDA 13.0 Blackwell wheels. It imports the Nano-only loader from the exact pinned official Space source and consumes the gated checkpoint only through its already downloaded immutable local snapshot. No Hugging Face credential is needed or stored for later offline runs.
+
+`chatterbox_nano_profile.py` loads that snapshot offline, prepares and caches one zero-shot speaker reference, runs a warm-up, three fixed-seed uninstrumented measurements, and one instrumented stage pass. Because the released Nano API returns only a completed utterance, its measured time-to-first-audio equals full generation time; the harness records that limitation explicitly instead of presenting completion latency as streaming TTFA.
