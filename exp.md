@@ -69,7 +69,7 @@ Follow-up:
 | EXP-011 | G1 | MOSS latency and resource profile | PASS | Warm TTFA passes target; RTF 1.13 exposes semantic-generation bottleneck |
 | EXP-012 | G1 | Chatterbox access and isolated environment validation | PASS | Flash CUDA/ABI stack valid; gated Nano revision downloaded without persisting credentials |
 | EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | PASS | 0.265 warm RTF and 2.79 GiB peak; full-utterance API misses interactive TTFA |
-| EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PLANNED | — |
+| EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | RUNNING | Pinned public checkpoint download started under Supervisor |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PLANNED | — |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PLANNED | — |
 | EXP-030 | G3 | Token/data pipeline integrity | PLANNED | — |
@@ -263,3 +263,15 @@ The released API exposes only full-utterance completion, so its measured first-a
 **Decision:** Nano validates the central reuse hypothesis: its pretrained one-step renderer is fast, deterministic, memory-light, and compatible with the 16 GiB target. It does not validate streaming delivery as released. Semantic generation is the dominant remaining bottleneck, so further work should focus on incremental/block semantic generation and packetized output rather than retraining the renderer from scratch.
 
 **Follow-up:** Profile Chatterbox Flash under the same evidence contract, including its block-generation/streaming surface, then compare MOSS, Nano, and Flash before selecting components for the lean hybrid path.
+
+### EXP-014 — Chatterbox-Flash smoke and warm profile
+
+- **Gate:** G1
+- **Status:** RUNNING
+- **Started:** 2026-07-16
+
+**Goal:** Validate the official public Chatterbox-Flash checkpoint end to end on the RTX 5060 Ti and measure deterministic warm full-completion latency, RTF, block-diffusion semantic cost, two-step acoustic cost, conditioning, and VRAM under the pure Torch SDPA backend.
+
+**Configuration:** Official Flash source commit `74e05baa8ce574bf2cc571702391a21f1b0d48c5`; public checkpoint revision `4385507288b8197e6dab8b4e6b1603328d549d9d`; isolated PyTorch/torchaudio `2.7.1+cu128` environment; BF16 T3; DRF block size 16; 10 diffusion steps; Torch backend without CUDA graphs; two meanflow acoustic steps; cached English zero-shot conditioning; fixed seed `20260716`; concurrency 1.
+
+**Acceptance criteria:** The pinned snapshot downloads and loads offline; warm-up, at least three measured requests, and one instrumented request produce finite non-silent audio; fixed-seed semantic tokens repeat; peak allocated VRAM stays below 14.5 GiB; semantic and acoustic stage timings are present. Source inspection found no waveform-yielding or `generate_stream` method, so full-completion time will be reported as first-audio time and native streaming will not be claimed.
