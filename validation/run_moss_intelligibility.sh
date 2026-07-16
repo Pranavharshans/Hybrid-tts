@@ -11,19 +11,23 @@ CODEC=/workspace/.hf_home/hub/models--OpenMOSS-Team--MOSS-Audio-Tokenizer-Nano/s
 PROMPT=/workspace/external/MOSS-TTS-Nano/assets/audio/en_6.wav
 mkdir -p "$ROOT"
 
-python validation/moss_challenge_synthesize.py \
-  --model /workspace/nano-flash-artifacts/g3/moss-overfit/merged-model \
-  --audio-tokenizer "$CODEC" \
-  --prompt-audio "$PROMPT" \
-  --suite validation/english_challenge_suite.json \
-  --output-dir "$ROOT/baseline"
+if [[ ! -f "$ROOT/baseline/synthesis.json" ]]; then
+  python validation/moss_challenge_synthesize.py \
+    --model /workspace/nano-flash-artifacts/g3/moss-overfit/merged-model \
+    --audio-tokenizer "$CODEC" \
+    --prompt-audio "$PROMPT" \
+    --suite validation/english_challenge_suite.json \
+    --output-dir "$ROOT/baseline"
+fi
 
-python validation/moss_challenge_synthesize.py \
-  --model /workspace/nano-flash-artifacts/g4/moss-lean-adaptation/checkpoints/checkpoint-last \
-  --audio-tokenizer "$CODEC" \
-  --prompt-audio "$PROMPT" \
-  --suite validation/english_challenge_suite.json \
-  --output-dir "$ROOT/adapted"
+if [[ ! -f "$ROOT/adapted/synthesis.json" ]]; then
+  python validation/moss_challenge_synthesize.py \
+    --model /workspace/nano-flash-artifacts/g4/moss-lean-adaptation/checkpoints/checkpoint-last \
+    --audio-tokenizer "$CODEC" \
+    --prompt-audio "$PROMPT" \
+    --suite validation/english_challenge_suite.json \
+    --output-dir "$ROOT/adapted"
+fi
 
 python validation/asr_compare.py \
   --baseline "$ROOT/baseline" \

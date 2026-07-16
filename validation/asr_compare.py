@@ -9,9 +9,10 @@ import os
 import re
 from pathlib import Path
 
-import librosa
+import soundfile as sf
 import torch
 from huggingface_hub import snapshot_download
+from scipy.signal import resample_poly
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 
 
@@ -39,6 +40,14 @@ def score(reference: str, hypothesis: str) -> tuple[int, int, int, int]:
     ref_words, hyp_words = ref.split(), hyp.split()
     ref_chars, hyp_chars = list(ref.replace(" ", "")), list(hyp.replace(" ", ""))
     return edit_distance(ref_words, hyp_words), len(ref_words), edit_distance(ref_chars, hyp_chars), len(ref_chars)
+
+
+def load_16khz(path: str) -> list[float]:
+    audio, sample_rate = sf.read(path, dtype="float32", always_2d=True)
+    mono = audio.mean(axis=1)
+    if sample_rate != 16000:
+        mono = resample_poly(mono, 16000, sample_rate)
+    return mono.astype("float32", copy=False)
 
 
 def main() -> int:
@@ -70,7 +79,7 @@ def main() -> int:
         records = []
         word_errors = word_total = char_errors = char_total = 0
         for item in synthesis["records"]:
-            audio, _ = librosa.load(item["audio"], sr=16000, mono=True)
+            audio = load_16khz(item["audio"])
             inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
             features = inputs.input_features.cuda(dtype=torch.float16)
             with torch.inference_mode():
