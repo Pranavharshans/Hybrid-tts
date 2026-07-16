@@ -69,7 +69,7 @@ Follow-up:
 | EXP-011 | G1 | MOSS latency and resource profile | PASS | Warm TTFA passes target; RTF 1.13 exposes semantic-generation bottleneck |
 | EXP-012 | G1 | Chatterbox access and isolated environment validation | PASS | Flash CUDA/ABI stack valid; gated Nano revision downloaded without persisting credentials |
 | EXP-013 | G1 | Chatterbox-Nano smoke and warm profile | PASS | 0.265 warm RTF and 2.79 GiB peak; full-utterance API misses interactive TTFA |
-| EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | RUNNING | Pinned public checkpoint download started under Supervisor |
+| EXP-014 | G1 | Chatterbox-Flash smoke and warm profile | PASS | Torch baseline is deterministic and memory-light; 0.592 RTF exposes unoptimized semantic bottleneck |
 | EXP-020 | G2 | Incremental-text simulator and prompt suite | PLANNED | — |
 | EXP-021 | G2 | Partial-text stability across arrival rates | PLANNED | — |
 | EXP-030 | G3 | Token/data pipeline integrity | PLANNED | — |
@@ -267,11 +267,20 @@ The released API exposes only full-utterance completion, so its measured first-a
 ### EXP-014 — Chatterbox-Flash smoke and warm profile
 
 - **Gate:** G1
-- **Status:** RUNNING
+- **Status:** PASS
 - **Started:** 2026-07-16
+- **Finished:** 2026-07-16
 
 **Goal:** Validate the official public Chatterbox-Flash checkpoint end to end on the RTX 5060 Ti and measure deterministic warm full-completion latency, RTF, block-diffusion semantic cost, two-step acoustic cost, conditioning, and VRAM under the pure Torch SDPA backend.
 
 **Configuration:** Official Flash source commit `74e05baa8ce574bf2cc571702391a21f1b0d48c5`; public checkpoint revision `4385507288b8197e6dab8b4e6b1603328d549d9d`; isolated PyTorch/torchaudio `2.7.1+cu128` environment; BF16 T3; DRF block size 16; 10 diffusion steps; Torch backend without CUDA graphs; two meanflow acoustic steps; cached English zero-shot conditioning; fixed seed `20260716`; concurrency 1.
 
 **Acceptance criteria:** The pinned snapshot downloads and loads offline; warm-up, at least three measured requests, and one instrumented request produce finite non-silent audio; fixed-seed semantic tokens repeat; peak allocated VRAM stays below 14.5 GiB; semantic and acoustic stage timings are present. Source inspection found no waveform-yielding or `generate_stream` method, so full-completion time will be reported as first-audio time and native streaming will not be claimed.
+
+**Results:** PASS as a pure-Torch architectural baseline. The exact 3,200,254,266-byte public snapshot downloaded and resolved to the requested revision. All warm and instrumented requests produced finite non-silent 24 kHz audio, 126 identical semantic tokens, and byte-identical 5.04 s PCM16 WAVs. Warm full-completion latency was `2.9825 s` p50 and `3.0025 s` p95; warm RTF was `0.5918` p50 and `0.5957` p95. The three-run latency coefficient of variation was `0.0044`. Peak allocated VRAM was only `2.4128 GiB`. The instrumented request took `2.9816 s`: block-diffusion semantic generation `2.8298 s` (94.9%), two-step meanflow acoustic rendering `0.1507 s` (5.1%), and orchestration `0.0011 s`. Initial conditioning took `14.8466 s` and peaked at `2.2594 GiB`; this is an offline per-voice preparation cost and was excluded from warm request latency. The model contains 532,406,272 T3 parameters, 266,030,919 S3Gen parameters, and 1,423,618 voice-encoder parameters.
+
+The raw summary is stored at `/workspace/nano-flash-artifacts/g1/chatterbox-flash-profile/chatterbox-flash-profile.json` with SHA-256 `705813c2d251c32d5e5c62a48409b48339fb4fff9df965fff83b22801b192f84`. Evidence occupies approximately 1 MiB, and 282 GiB remains free. As with EXP-013, p50/p95 values are three-run sanity statistics rather than production percentile estimates.
+
+**Decision:** The released Flash components work on the 16 GiB GPU, but the pure Torch path misses both latency targets and is slower than Nano. This result does not invalidate block diffusion: the repository's optimized claims depend on FlashInfer and CUDA graphs, neither of which was enabled in this compatibility-first baseline. It does show that the semantic model—not the renderer—is again the dominant cost, and that the public wrapper's complete-waveform return prevents native interactive TTFA measurement. Reuse the pretrained Flash/Nano components; do not train either stack from scratch. Treat FlashInfer/CUDA graphs and true block-to-audio scheduling as explicit optimization/streaming gates rather than assumed capabilities.
+
+**Follow-up:** Close G1 with a comparative component decision, then implement the G2 incremental-text simulator. Later G7 optimization will test whether FlashInfer/CUDA graphs materially change the block baseline on Blackwell before selecting or adapting a frozen block head.
